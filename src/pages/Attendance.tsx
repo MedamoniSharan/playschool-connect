@@ -4,7 +4,7 @@ import { PageHeader, Avatar, StatusBadge } from "@/components/ui-custom/SharedCo
 import { students as allStudents } from "@/data/mockData";
 
 export default function Attendance() {
-  const { currentUser, attendance, setAttendance, getChildrenForParent, getStudentsForTeacher } = useApp();
+  const { currentUser, attendance, setAttendance, getChildrenForParent, getStudentsForTeacher, classes } = useApp();
   const [selectedDate] = useState("2025-04-10");
 
   if (currentUser.role === "teacher") {
