@@ -14,6 +14,8 @@ import {
   User,
   GraduationCap,
   ChevronDown,
+  LayoutGrid,
+  List,
 } from "lucide-react";
 import { Student, ClassRoom } from "@/types";
 
@@ -285,6 +287,7 @@ export default function Students() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterClass, setFilterClass] = useState("");
   const [filterSection, setFilterSection] = useState("");
+  const [viewMode, setViewMode] = useState<"table" | "grid">("table");
 
   const isAdmin = currentUser?.role === "admin";
   const isTeacher = currentUser?.role === "teacher";
@@ -413,6 +416,30 @@ export default function Students() {
           </select>
           <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-dash-muted" strokeWidth={2} />
         </div>
+        <div className="flex gap-1 ml-auto">
+          <button
+            type="button"
+            onClick={() => setViewMode("table")}
+            className={cn(
+              "inline-flex h-10 w-10 items-center justify-center rounded-xl transition-all",
+              viewMode === "table" ? "bg-dash-ink text-white shadow-sm" : "bg-dash-canvas text-dash-muted hover:text-dash-ink"
+            )}
+            aria-label="Table view"
+          >
+            <List size={18} strokeWidth={2} />
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode("grid")}
+            className={cn(
+              "inline-flex h-10 w-10 items-center justify-center rounded-xl transition-all",
+              viewMode === "grid" ? "bg-dash-ink text-white shadow-sm" : "bg-dash-canvas text-dash-muted hover:text-dash-ink"
+            )}
+            aria-label="Grid view"
+          >
+            <LayoutGrid size={18} strokeWidth={2} />
+          </button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -423,102 +450,155 @@ export default function Students() {
         <StatTile value={girls} label="Girls" icon={User} variant="ink" />
       </div>
 
-      {/* Table card */}
-      <div className="overflow-hidden rounded-[28px] border border-dash-subtle bg-dash-surface shadow-sm">
-        <div className="border-b border-dash-subtle px-6 py-4">
-          <h2 className="text-base font-bold text-dash-ink">Directory</h2>
-          <p className="text-xs font-medium text-dash-muted">Showing {displayStudents.length} student{displayStudents.length !== 1 ? "s" : ""}</p>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[720px]">
-            <thead>
-              <tr className="bg-dash-canvas/80 text-left">
-                <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-dash-muted">Student</th>
-                <th className="px-4 py-4 text-xs font-bold uppercase tracking-wider text-dash-muted">Class</th>
-                <th className="px-4 py-4 text-xs font-bold uppercase tracking-wider text-dash-muted">Placement</th>
-                <th className="px-4 py-4 text-xs font-bold uppercase tracking-wider text-dash-muted">Age</th>
-                <th className="px-4 py-4 text-xs font-bold uppercase tracking-wider text-dash-muted">Gender</th>
-                <th className="hidden px-4 py-4 text-xs font-bold uppercase tracking-wider text-dash-muted sm:table-cell">Enrolled</th>
-                {(isAdmin || isTeacher) && (
-                  <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider text-dash-muted">Actions</th>
-                )}
-              </tr>
-            </thead>
-            <tbody>
-              {displayStudents.map((student) => {
-                const cls = classes.find((c) => c.id === student.classId);
-                return (
-                  <tr
-                    key={student.id}
-                    className="border-t border-dash-subtle transition-colors hover:bg-dash-canvas/40"
-                  >
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <PersonAvatar kind="student" id={student.id} gender={student.gender} size="sm" />
-                        <span className="text-sm font-bold text-dash-ink">{student.name}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-4 text-sm font-semibold text-dash-ink">{cls?.name || "—"}</td>
-                    <td className="px-4 py-4">
-                      {isAdmin || isTeacher ? (
-                        <div className="relative inline-block min-w-[160px] max-w-[220px]">
-                          <select
-                            value={`${student.classId}|${student.section}`}
-                            onChange={(e) => {
-                              const [cId, sec] = e.target.value.split("|");
-                              handleReassign(student.id, cId, sec);
-                            }}
-                            className="w-full cursor-pointer appearance-none rounded-full border border-dash-subtle bg-dash-canvas py-2 pl-3 pr-8 text-xs font-bold text-dash-ink outline-none transition-colors hover:border-dash-ring focus:ring-2 focus:ring-dash-ink/10"
-                          >
-                            {classes.flatMap((c) =>
-                              c.sections.map((s) => (
-                                <option key={`${c.id}|${s}`} value={`${c.id}|${s}`}>
-                                  {c.name} · {s}
-                                </option>
-                              )),
-                            )}
-                          </select>
-                          <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-dash-muted" />
+      {/* Table view */}
+      {viewMode === "table" && (
+        <div className="overflow-hidden rounded-[28px] border border-dash-subtle bg-dash-surface shadow-sm">
+          <div className="border-b border-dash-subtle px-6 py-4">
+            <h2 className="text-base font-bold text-dash-ink">Directory</h2>
+            <p className="text-xs font-medium text-dash-muted">Showing {displayStudents.length} student{displayStudents.length !== 1 ? "s" : ""}</p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[720px]">
+              <thead>
+                <tr className="bg-dash-canvas/80 text-left">
+                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-dash-muted">Student</th>
+                  <th className="px-4 py-4 text-xs font-bold uppercase tracking-wider text-dash-muted">Class</th>
+                  <th className="px-4 py-4 text-xs font-bold uppercase tracking-wider text-dash-muted">Placement</th>
+                  <th className="px-4 py-4 text-xs font-bold uppercase tracking-wider text-dash-muted">Age</th>
+                  <th className="px-4 py-4 text-xs font-bold uppercase tracking-wider text-dash-muted">Gender</th>
+                  <th className="hidden px-4 py-4 text-xs font-bold uppercase tracking-wider text-dash-muted sm:table-cell">Enrolled</th>
+                  {(isAdmin || isTeacher) && (
+                    <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider text-dash-muted">Actions</th>
+                  )}
+                </tr>
+              </thead>
+              <tbody>
+                {displayStudents.map((student) => {
+                  const cls = classes.find((c) => c.id === student.classId);
+                  return (
+                    <tr key={student.id} className="border-t border-dash-subtle transition-colors hover:bg-dash-canvas/40">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <PersonAvatar kind="student" id={student.id} gender={student.gender} size="sm" />
+                          <span className="text-sm font-bold text-dash-ink">{student.name}</span>
                         </div>
-                      ) : (
-                        <span className="text-sm font-semibold text-dash-ink">
-                          {cls?.name} · {student.section}
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-4 py-4 text-sm font-semibold tabular-nums text-dash-ink">{student.age}</td>
-                    <td className="px-4 py-4">
-                      <span
-                        className={cn(
-                          "inline-flex rounded-full px-3 py-1 text-xs font-bold capitalize",
-                          student.gender === "male"
-                            ? "bg-[hsl(215,42%,93%)] text-[hsl(215,50%,38%)]"
-                            : "bg-[hsl(330,42%,93%)] text-[hsl(330,50%,40%)]",
-                        )}
-                      >
-                        {student.gender}
-                      </span>
-                    </td>
-                    <td className="hidden px-4 py-4 text-sm font-medium text-dash-muted sm:table-cell">{student.enrollmentDate}</td>
-                    {(isAdmin || isTeacher) && (
-                      <td className="px-6 py-4 text-right">
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteStudent(student.id)}
-                          className="inline-flex h-9 w-9 items-center justify-center rounded-full text-red-600 transition-colors hover:bg-red-500/10"
-                          aria-label={`Remove ${student.name}`}
-                        >
-                          <Trash2 size={16} strokeWidth={2} />
-                        </button>
                       </td>
-                    )}
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                      <td className="px-4 py-4 text-sm font-semibold text-dash-ink">{cls?.name || "—"}</td>
+                      <td className="px-4 py-4">
+                        {isAdmin || isTeacher ? (
+                          <div className="relative inline-block min-w-[160px] max-w-[220px]">
+                            <select
+                              value={`${student.classId}|${student.section}`}
+                              onChange={(e) => {
+                                const [cId, sec] = e.target.value.split("|");
+                                handleReassign(student.id, cId, sec);
+                              }}
+                              className="w-full cursor-pointer appearance-none rounded-full border border-dash-subtle bg-dash-canvas py-2 pl-3 pr-8 text-xs font-bold text-dash-ink outline-none transition-colors hover:border-dash-ring focus:ring-2 focus:ring-dash-ink/10"
+                            >
+                              {classes.flatMap((c) =>
+                                c.sections.map((s) => (
+                                  <option key={`${c.id}|${s}`} value={`${c.id}|${s}`}>
+                                    {c.name} · {s}
+                                  </option>
+                                )),
+                              )}
+                            </select>
+                            <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-dash-muted" />
+                          </div>
+                        ) : (
+                          <span className="text-sm font-semibold text-dash-ink">
+                            {cls?.name} · {student.section}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-4 text-sm font-semibold tabular-nums text-dash-ink">{student.age}</td>
+                      <td className="px-4 py-4">
+                        <span
+                          className={cn(
+                            "inline-flex rounded-full px-3 py-1 text-xs font-bold capitalize",
+                            student.gender === "male"
+                              ? "bg-[hsl(215,42%,93%)] text-[hsl(215,50%,38%)]"
+                              : "bg-[hsl(330,42%,93%)] text-[hsl(330,50%,40%)]",
+                          )}
+                        >
+                          {student.gender}
+                        </span>
+                      </td>
+                      <td className="hidden px-4 py-4 text-sm font-medium text-dash-muted sm:table-cell">{student.enrollmentDate}</td>
+                      {(isAdmin || isTeacher) && (
+                        <td className="px-6 py-4 text-right">
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteStudent(student.id)}
+                            className="inline-flex h-9 w-9 items-center justify-center rounded-full text-red-600 transition-colors hover:bg-red-500/10"
+                            aria-label={`Remove ${student.name}`}
+                          >
+                            <Trash2 size={16} strokeWidth={2} />
+                          </button>
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* Grid (card) view */}
+      {viewMode === "grid" && (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {displayStudents.map((student) => {
+            const cls = classes.find((c) => c.id === student.classId);
+            return (
+              <div
+                key={student.id}
+                className="group relative overflow-hidden rounded-[24px] border border-dash-subtle bg-dash-surface p-5 shadow-sm transition-all hover:border-dash-ring hover:shadow-md"
+              >
+                {(isAdmin || isTeacher) && (
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteStudent(student.id)}
+                    className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full text-red-500 opacity-0 transition-all hover:bg-red-500/10 group-hover:opacity-100"
+                    aria-label={`Remove ${student.name}`}
+                  >
+                    <Trash2 size={14} strokeWidth={2} />
+                  </button>
+                )}
+                <div className="mb-4 flex flex-col items-center text-center">
+                  <PersonAvatar kind="student" id={student.id} gender={student.gender} />
+                  <h3 className="mt-3 text-base font-bold text-dash-ink">{student.name}</h3>
+                  <p className="text-xs font-medium text-dash-muted">{cls?.name || "—"} · Section {student.section}</p>
+                </div>
+                <div className="space-y-2 border-t border-dash-subtle pt-3">
+                  <div className="flex justify-between text-sm">
+                    <span className="font-medium text-dash-muted">Age</span>
+                    <span className="font-bold text-dash-ink">{student.age}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="font-medium text-dash-muted">Gender</span>
+                    <span
+                      className={cn(
+                        "inline-flex rounded-full px-2.5 py-0.5 text-xs font-bold capitalize",
+                        student.gender === "male"
+                          ? "bg-[hsl(215,42%,93%)] text-[hsl(215,50%,38%)]"
+                          : "bg-[hsl(330,42%,93%)] text-[hsl(330,50%,40%)]",
+                      )}
+                    >
+                      {student.gender}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="font-medium text-dash-muted">Enrolled</span>
+                    <span className="font-semibold text-dash-ink">{student.enrollmentDate}</span>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {displayStudents.length === 0 && (
         <div className="mt-10 flex flex-col items-center justify-center rounded-[28px] border border-dashed border-dash-ring bg-dash-surface px-6 py-16 text-center">

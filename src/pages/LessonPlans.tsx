@@ -4,10 +4,10 @@ import { PageHeader, PersonAvatar } from "@/components/ui-custom/SharedComponent
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { format, parseISO, isSameDay } from "date-fns";
-import { CalendarDays, List, Plus, Trash2 } from "lucide-react";
+import { CalendarDays, LayoutGrid, List, Plus, Trash2 } from "lucide-react";
 import type { LessonPlan } from "@/types";
 
-type View = "calendar" | "list";
+type View = "calendar" | "list" | "grid";
 
 export default function LessonPlans() {
   const {
@@ -133,6 +133,17 @@ export default function LessonPlans() {
             </button>
             <button
               type="button"
+              onClick={() => setView("grid")}
+              className={cn(
+                "inline-flex items-center gap-2 rounded-[16px] px-3 py-2 text-sm font-medium",
+                view === "grid" ? "bg-dash-ink text-white shadow-md shadow-dash-ink/20" : "bg-dash-canvas",
+              )}
+            >
+              <LayoutGrid className="h-4 w-4" />
+              Grid
+            </button>
+            <button
+              type="button"
               onClick={() => setView("calendar")}
               className={cn(
                 "inline-flex items-center gap-2 rounded-[16px] px-3 py-2 text-sm font-medium",
@@ -207,6 +218,57 @@ export default function LessonPlans() {
       )}
 
       {view === "list" && <div className="space-y-3">{visiblePlans.map((p) => renderPlanRow(p))}</div>}
+
+      {view === "grid" && (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {visiblePlans.map((p) => {
+            const s = students.find((x) => x.id === p.studentId);
+            const cls = classes.find((c) => c.id === p.classId);
+            const act = getActivitiesWithSubjects(p.classId).find((x) => x.activity.id === p.activityId);
+            return (
+              <div
+                key={p.id}
+                className="overflow-hidden rounded-[24px] border border-dash-subtle bg-dash-surface p-5 shadow-sm transition-all hover:border-dash-ring hover:shadow-md"
+              >
+                <div className="mb-3 flex items-center gap-3">
+                  {s && <PersonAvatar kind="student" id={s.id} gender={s.gender} />}
+                  <div className="min-w-0 flex-1">
+                    <h4 className="text-sm font-bold text-dash-ink">{s?.name}</h4>
+                    <p className="text-xs text-dash-muted">{cls?.name}</p>
+                  </div>
+                </div>
+                <div className="space-y-2 border-t border-dash-subtle pt-3">
+                  <div className="flex justify-between text-sm">
+                    <span className="font-medium text-dash-muted">Activity</span>
+                    <span className="font-semibold text-dash-ink text-right max-w-[60%] truncate">{act?.activity.name ?? "Activity"}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="font-medium text-dash-muted">Subject</span>
+                    <span className="font-semibold text-dash-ink">{act?.subjectName ?? "—"}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="font-medium text-dash-muted">Date</span>
+                    <span className="font-semibold text-dash-ink">{p.date}</span>
+                  </div>
+                  {p.notes && (
+                    <p className="text-xs text-dash-muted italic pt-1">{p.notes}</p>
+                  )}
+                </div>
+                {canManage && (
+                  <button
+                    type="button"
+                    onClick={() => removeLessonPlan(p.id)}
+                    className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-full border border-red-200 py-2 text-xs font-bold text-red-600 transition-colors hover:bg-red-50"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    Remove
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {visiblePlans.length === 0 && (
         <div className="py-16 text-center text-dash-muted">
