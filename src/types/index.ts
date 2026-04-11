@@ -5,6 +5,7 @@ export interface User {
   name: string;
   role: Role;
   email: string;
+  password: string;
   avatar: string;
   classId?: string;
   childIds?: string[];
@@ -15,14 +16,18 @@ export interface Student {
   name: string;
   age: number;
   classId: string;
+  section: string;
   parentId: string;
   avatar: string;
+  gender: "male" | "female";
+  enrollmentDate: string;
 }
 
 export interface ClassRoom {
   id: string;
   name: string;
   teacherId: string;
+  sections: string[];
   studentIds: string[];
 }
 
