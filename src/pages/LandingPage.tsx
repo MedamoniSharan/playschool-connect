@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   School,
   Users,
@@ -65,6 +65,40 @@ const FeatureCard = ({ icon: Icon, title, description, color }: { icon: any; tit
     </div>
   </div>
 );
+
+const AnimatedCounter = ({ target, duration = 2000, suffix = "" }: { target: string; duration?: number; suffix?: string }) => {
+  const [count, setCount] = useState(0);
+  const ref = useRef<HTMLSpanElement>(null);
+  const numericTarget = parseInt(target.replace(/[^0-9]/g, "")) || 0;
+  const actualSuffix = target.replace(/[0-9]/g, "") + suffix;
+
+  useEffect(() => {
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) {
+        let startTimestamp: number | null = null;
+        const step = (timestamp: number) => {
+          if (!startTimestamp) startTimestamp = timestamp;
+          const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+          setCount(Math.floor(progress * numericTarget));
+          if (progress < 1) {
+            window.requestAnimationFrame(step);
+          }
+        };
+        window.requestAnimationFrame(step);
+        observer.disconnect();
+      }
+    }, { threshold: 0.1 });
+
+    if (ref.current) observer.observe(ref.current);
+    return () => observer.disconnect();
+  }, [numericTarget, duration]);
+
+  return (
+    <span ref={ref} className="tabular-nums">
+      {count}{actualSuffix}
+    </span>
+  );
+};
 
 export default function LandingPage() {
   const navigate = useNavigate();
@@ -303,7 +337,9 @@ export default function LandingPage() {
             { label: "Cool Awards", count: "50+", color: "#6f42c1" },
           ].map((stat, i) => (
             <div key={i} className="group cursor-default">
-              <div className="text-5xl md:text-7xl font-black mb-2 transition-transform group-hover:scale-125 select-none" style={{ color: stat.color }}>{stat.count}</div>
+              <div className="text-5xl md:text-7xl font-black mb-2 transition-transform group-hover:scale-125 select-none" style={{ color: stat.color }}>
+                <AnimatedCounter target={stat.count} />
+              </div>
               <div className="text-lg font-black text-gray-800 uppercase tracking-widest">{stat.label}</div>
             </div>
           ))}
@@ -374,7 +410,7 @@ export default function LandingPage() {
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pb-20">
             {[
-              "1502086223501-7ea244b05ec6",
+              "1503454537195-1dcabb73ffb9",
               "1544367567-0f2fcb009e0b",
               "1596464716127-f2a82984de30",
               "1488521787991-ed7bbaae773c"
@@ -385,13 +421,52 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section id="franchise" className="py-32 bg-red-600 relative overflow-hidden">
-        <div className="max-w-4xl mx-auto px-4 text-center relative z-10">
-          <h2 className="text-5xl md:text-7xl font-black text-white mb-8 leading-tight">Start Your Own <br /> Little Berries!</h2>
-          <p className="text-white/80 text-xl font-bold mb-12 italic">Be a part of the fastest growing preschool chain in India.</p>
-          <button className="bg-white text-red-600 px-16 py-6 rounded-[3rem] font-black text-2xl shadow-2xl hover:scale-105 transition-all">INQUIRE NOW</button>
+      <section id="franchise" className="py-32 relative overflow-hidden bg-white">
+        <div className="max-w-7xl mx-auto px-4 relative z-10">
+          <div className="bg-red-600 rounded-[4rem] p-12 lg:p-24 text-center relative overflow-hidden shadow-2xl">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl" />
+            <div className="absolute bottom-0 left-0 w-64 h-64 bg-yellow-400/20 rounded-full translate-y-1/2 -translate-x-1/2 blur-3xl" />
+            
+            <div className="relative z-10 max-w-3xl mx-auto">
+              <div className="inline-flex items-center gap-2 bg-white/20 px-6 py-2 rounded-full text-white font-black text-sm mb-8 backdrop-blur-sm">
+                < Award size={18} className="text-yellow-400" />
+                PREMIUM PARTNERSHIP OPPORTUNITY
+              </div>
+              <h2 className="text-5xl md:text-8xl font-black text-white mb-8 leading-[0.9] tracking-tighter">
+                Start Your Own <br />
+                <span className="text-yellow-400">Little Berries!</span>
+              </h2>
+              <p className="text-white/80 text-xl md:text-2xl font-bold mb-12 italic leading-relaxed">
+                Be a part of the fastest growing preschool chain in India. <br className="hidden md:block" />
+                Empower children while building a successful business.
+              </p>
+              
+              <div className="grid sm:grid-cols-3 gap-6 mb-12">
+                {[
+                  { label: "Low Investment", icon: Heart },
+                  { label: "Full Support", icon: Users },
+                  { label: "Proven Model", icon: Star },
+                ].map((item, idx) => (
+                  <div key={idx} className="bg-white/10 backdrop-blur-md rounded-3xl p-6 border border-white/20 transition-transform hover:-translate-y-2">
+                    <div className="bg-white/20 w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-3 text-yellow-400">
+                      <item.icon size={24} />
+                    </div>
+                    <div className="text-white font-black text-sm">{item.label}</div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
+                <button className="w-full sm:w-auto bg-white text-red-600 px-16 py-6 rounded-[3rem] font-black text-2xl shadow-[0_12px_0_0_#ddd] hover:scale-105 active:translate-y-2 active:shadow-none transition-all">
+                  INQUIRE NOW
+                </button>
+                <button className="w-full sm:w-auto bg-yellow-400 text-red-600 px-12 py-6 rounded-[3rem] font-black text-xl hover:bg-white transition-colors">
+                  VIEW BROCHURE
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
-        <div className="absolute inset-0 bg-white/5 [mask-image:radial-gradient(circle,white_20%,transparent_80%)]" />
       </section>
 
       <section id="initiatives" className="py-32 bg-gray-50 overflow-hidden relative">
