@@ -3,7 +3,7 @@ import { useApp } from "@/context/AppContext";
 import { PageHeader, StatusBadge } from "@/components/ui-custom/SharedComponents";
 import { X, Plus, Trash2, Filter } from "lucide-react";
 import { MediaItem } from "@/types";
-import { students as allStudents, classes } from "@/data/mockData";
+import { students as allStudents } from "@/data/mockData";
 
 function MediaModal({ item, onClose }: { item: MediaItem; onClose: () => void }) {
   const tagged = allStudents.filter((s) => item.studentIds.includes(s.id));

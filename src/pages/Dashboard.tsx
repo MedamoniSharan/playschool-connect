@@ -178,10 +178,10 @@ export default function Dashboard() {
 
   return (
     <div>
-      <PageHeader title={`Welcome, ${currentUser.name.split(" ")[0]}!`} description={`${currentUser.role.charAt(0).toUpperCase() + currentUser.role.slice(1)} Dashboard`} />
-      {currentUser.role === "admin" && <AdminDashboard />}
-      {currentUser.role === "teacher" && <TeacherDashboard />}
-      {currentUser.role === "parent" && <ParentDashboard />}
+      <PageHeader title={`Welcome, ${currentUser?.name.split(" ")[0] || ""}!`} description={`${(currentUser?.role || "").charAt(0).toUpperCase() + (currentUser?.role || "").slice(1)} Dashboard`} />
+      {currentUser?.role === "admin" && <AdminDashboard />}
+      {currentUser?.role === "teacher" && <TeacherDashboard />}
+      {currentUser?.role === "parent" && <ParentDashboard />}
     </div>
   );
 }

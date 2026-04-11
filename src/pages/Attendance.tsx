@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useApp } from "@/context/AppContext";
 import { PageHeader, Avatar, StatusBadge } from "@/components/ui-custom/SharedComponents";
-import { classes, students as allStudents } from "@/data/mockData";
+import { students as allStudents } from "@/data/mockData";
 
 export default function Attendance() {
   const { currentUser, attendance, setAttendance, getChildrenForParent, getStudentsForTeacher } = useApp();
