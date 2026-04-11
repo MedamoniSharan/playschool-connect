@@ -1,7 +1,6 @@
 import { useApp } from "@/context/AppContext";
 import { StatCard, PageHeader, Avatar, StatusBadge } from "@/components/ui-custom/SharedComponents";
 import { Users, GraduationCap, DollarSign, Image, CalendarCheck, Upload } from "lucide-react";
-import { classes, students } from "@/data/mockData";
 
 function AdminDashboard() {
   const { fees, gallery, students: allStudents } = useApp();
