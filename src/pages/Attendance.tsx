@@ -1,23 +1,43 @@
 import { useState } from "react";
+import { format } from "date-fns";
 import { useApp } from "@/context/AppContext";
 import { PageHeader, PersonAvatar, StatusBadge } from "@/components/ui-custom/SharedComponents";
+import { Calendar } from "@/components/ui/calendar";
 import { students as allStudents } from "@/data/mockData";
 
 export default function Attendance() {
   const { currentUser, attendance, setAttendance, getChildrenForParent, getStudentsForTeacher, classes } = useApp();
-  const [selectedDate] = useState("2025-04-10");
-
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date("2026-04-11"));
+  
   if (!currentUser) return null;
+
+  const dateStr = selectedDate ? format(selectedDate, "yyyy-MM-dd") : "";
 
   if (currentUser.role === "teacher") {
     const myClass = classes.find((c) => c.teacherId === currentUser.id);
     const myStudents = getStudentsForTeacher(currentUser.id);
-    const record = attendance.find((a) => a.classId === myClass?.id && a.date === selectedDate);
+    const record = attendance.find((a) => a.classId === myClass?.id && a.date === dateStr);
 
     const toggleAttendance = (studentId: string) => {
+      if (!selectedDate || !myClass) return;
+      
+      const exists = attendance.some(a => a.classId === myClass.id && a.date === dateStr);
+      if (!exists) {
+        setAttendance(prev => [
+          ...prev, 
+          {
+            id: `att-${Date.now()}`,
+            date: dateStr,
+            classId: myClass.id,
+            records: myStudents.map(s => ({ studentId: s.id, status: s.id === studentId ? "absent" : "present" }))
+          }
+        ]);
+        return;
+      }
+
       setAttendance((prev) =>
         prev.map((a) => {
-          if (a.classId !== myClass?.id || a.date !== selectedDate) return a;
+          if (a.classId !== myClass?.id || a.date !== dateStr) return a;
           return {
             ...a,
             records: a.records.map((r) =>
@@ -30,39 +50,54 @@ export default function Attendance() {
 
     return (
       <div>
-        <PageHeader title="Attendance" description={`${myClass?.name} · ${selectedDate}`} />
-        <div className="bg-card rounded-xl border border-border overflow-hidden">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-border bg-secondary/50">
-                <th className="text-left text-xs font-medium text-muted-foreground py-3 px-4">Student</th>
-                <th className="text-left text-xs font-medium text-muted-foreground py-3 px-4">Status</th>
-                <th className="text-right text-xs font-medium text-muted-foreground py-3 px-4">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {myStudents.map((s) => {
-                const status = record?.records.find((r) => r.studentId === s.id)?.status || "absent";
-                return (
-                  <tr key={s.id} className="border-b border-border last:border-0">
-                    <td className="py-3 px-4">
-                      <div className="flex items-center gap-3">
-                        <PersonAvatar kind="student" id={s.id} gender={s.gender} size="sm" />
-                        <span className="text-sm font-medium">{s.name}</span>
-                      </div>
-                    </td>
-                    <td className="py-3 px-4"><StatusBadge status={status} /></td>
-                    <td className="py-3 px-4 text-right">
-                      <button onClick={() => toggleAttendance(s.id)}
-                        className="text-xs px-3 py-1.5 rounded-lg bg-secondary hover:bg-sidebar-hover transition-colors font-medium">
-                        Toggle
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+        <PageHeader title="Attendance" description={`${myClass?.name ?? "Class"} · ${dateStr}`} />
+        <div className="grid gap-6 lg:grid-cols-[auto,1fr] items-start">
+          <div className="w-fit">
+            <Calendar
+              mode="single"
+              selected={selectedDate}
+              onSelect={(d) => { if (d) setSelectedDate(d); }}
+              className="rounded-xl border border-border bg-card shadow-sm"
+            />
+          </div>
+          <div className="bg-card rounded-xl border border-border overflow-hidden">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-border bg-secondary/50">
+                  <th className="text-left text-xs font-medium text-muted-foreground py-3 px-4">Student</th>
+                  <th className="text-left text-xs font-medium text-muted-foreground py-3 px-4">Status</th>
+                  <th className="text-right text-xs font-medium text-muted-foreground py-3 px-4">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {myStudents.map((s) => {
+                  const status = record?.records.find((r) => r.studentId === s.id)?.status || "present";
+                  return (
+                    <tr key={s.id} className="border-b border-border last:border-0">
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-3">
+                          <PersonAvatar kind="student" id={s.id} gender={s.gender} size="sm" />
+                          <span className="text-sm font-medium">{s.name}</span>
+                        </div>
+                      </td>
+                      <td className="py-3 px-4"><StatusBadge status={!record ? "present" : status} /></td>
+                      <td className="py-3 px-4 text-right">
+                        <button onClick={() => toggleAttendance(s.id)}
+                          className="text-xs px-3 py-1.5 rounded-lg bg-secondary hover:bg-sidebar-hover transition-colors font-medium">
+                          Toggle
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            {!record && myStudents.length > 0 && (
+               <div className="p-4 bg-muted/30 border-t border-border text-xs text-muted-foreground text-center">
+                 No record exists for {dateStr}. Clicking toggle will initialize the roster as Present.
+               </div>
+            )}
+          </div>
         </div>
       </div>
     );
@@ -94,6 +129,9 @@ export default function Attendance() {
                       <StatusBadge status={r.status} />
                     </div>
                   ))}
+                  {childRecords.length === 0 && (
+                    <p className="text-sm text-muted-foreground py-2">No attendance records found.</p>
+                  )}
                 </div>
               </div>
             );
@@ -106,54 +144,69 @@ export default function Attendance() {
   // Admin view
   return (
     <div>
-      <PageHeader title="Attendance" description="All classes attendance summary" />
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {classes.map((cls) => {
-          const record = attendance.find((a) => a.classId === cls.id && a.date === selectedDate);
-          const present = record?.records.filter((r) => r.status === "present").length || 0;
-          const total = record?.records.length || 0;
-          return (
-            <div key={cls.id} className="bg-card rounded-xl border border-border p-5">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="font-semibold">{cls.name}</h3>
-                <span className="text-sm text-muted-foreground">{selectedDate}</span>
-              </div>
-              <div className="flex items-center gap-4 mb-4">
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-success">{present}</p>
-                  <p className="text-xs text-muted-foreground">Present</p>
+      <PageHeader title="Attendance" description={`All classes attendance summary for ${dateStr}`} />
+      <div className="grid gap-6 xl:grid-cols-[auto,1fr] items-start">
+        <div className="w-fit">
+          <Calendar
+            mode="single"
+            selected={selectedDate}
+            onSelect={(d) => { if (d) setSelectedDate(d); }}
+            className="rounded-xl border border-border bg-card shadow-sm"
+          />
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full">
+          {classes.map((cls) => {
+            const record = attendance.find((a) => a.classId === cls.id && a.date === dateStr);
+            const present = record?.records.filter((r) => r.status === "present").length || 0;
+            const total = record?.records.length || 0;
+            return (
+              <div key={cls.id} className="bg-card rounded-xl border border-border p-5">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="font-semibold">{cls.name}</h3>
                 </div>
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-destructive">{total - present}</p>
-                  <p className="text-xs text-muted-foreground">Absent</p>
-                </div>
-                <div className="flex-1">
-                  <div className="w-full bg-secondary rounded-full h-3">
-                    <div className="bg-success h-3 rounded-full transition-all" style={{ width: total > 0 ? `${(present / total) * 100}%` : "0%" }} />
-                  </div>
-                </div>
-              </div>
-              <div className="space-y-2">
-                {record?.records.map((r) => {
-                  const student = allStudents.find((s) => s.id === r.studentId);
-                  return (
-                    <div key={r.studentId} className="flex items-center justify-between py-1.5">
-                      <div className="flex items-center gap-2">
-                        {student ? (
-                          <PersonAvatar kind="student" id={student.id} gender={student.gender} size="sm" />
-                        ) : (
-                          <PersonAvatar kind="student" id={r.studentId} gender="male" size="sm" />
-                        )}
-                        <span className="text-sm">{student?.name}</span>
+                {record ? (
+                  <>
+                    <div className="flex items-center gap-4 mb-4">
+                      <div className="text-center">
+                        <p className="text-xl font-bold text-success">{present}</p>
+                        <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Present</p>
                       </div>
-                      <StatusBadge status={r.status} />
+                      <div className="text-center">
+                        <p className="text-xl font-bold text-destructive">{total - present}</p>
+                        <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Absent</p>
+                      </div>
+                      <div className="flex-1 ml-2">
+                        <div className="w-full bg-secondary rounded-full h-2">
+                          <div className="bg-success h-2 rounded-full transition-all" style={{ width: total > 0 ? `${(present / total) * 100}%` : "0%" }} />
+                        </div>
+                      </div>
                     </div>
-                  );
-                })}
+                    <div className="space-y-1">
+                      {record.records.map((r) => {
+                        const student = allStudents.find((s) => s.id === r.studentId);
+                        return (
+                          <div key={r.studentId} className="flex items-center justify-between py-1.5 border-b border-border last:border-0">
+                            <div className="flex items-center gap-2">
+                              {student ? (
+                                <PersonAvatar kind="student" id={student.id} gender={student.gender} size="sm" />
+                              ) : (
+                                <PersonAvatar kind="student" id={r.studentId} gender="male" size="sm" />
+                              )}
+                              <span className="text-sm">{student?.name}</span>
+                            </div>
+                            <StatusBadge status={r.status} />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground py-4">No attendance record for this date.</p>
+                )}
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
     </div>
   );

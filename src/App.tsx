@@ -14,6 +14,11 @@ import Fees from "@/pages/Fees";
 import Notifications from "@/pages/Notifications";
 import Broadcast from "@/pages/Broadcast";
 import Students from "@/pages/Students";
+import Curriculum from "@/pages/Curriculum";
+import Progress from "@/pages/Progress";
+import LessonPlans from "@/pages/LessonPlans";
+import Reports from "@/pages/Reports";
+import Communications from "@/pages/Communications";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -43,6 +48,11 @@ function AppRoutes() {
         <Route path="/fees" element={<ProtectedRoute><Fees /></ProtectedRoute>} />
         <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
         <Route path="/broadcast" element={<ProtectedRoute><Broadcast /></ProtectedRoute>} />
+        <Route path="/curriculum" element={<ProtectedRoute><Curriculum /></ProtectedRoute>} />
+        <Route path="/progress" element={<ProtectedRoute><Progress /></ProtectedRoute>} />
+        <Route path="/lessons" element={<ProtectedRoute><LessonPlans /></ProtectedRoute>} />
+        <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
+        <Route path="/communications" element={<ProtectedRoute><Communications /></ProtectedRoute>} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </MainLayout>

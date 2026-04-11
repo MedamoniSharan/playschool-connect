@@ -14,7 +14,7 @@ export default function LandingPage() {
   const navigate = useNavigate();
 
   return (
-    <div className="relative min-h-screen overflow-hidden" style={{ background: "hsl(201, 100%, 13%)" }}>
+    <div className="landing-page relative min-h-screen overflow-hidden" style={{ background: "hsl(201, 100%, 13%)" }}>
       {/* Video Background */}
       <video
         autoPlay
@@ -22,7 +22,7 @@ export default function LandingPage() {
         muted
         playsInline
         className="absolute inset-0 w-full h-full object-cover z-0"
-        style={{ opacity: 0.6 }}
+        style={{ opacity: 0.85 }}
       >
         <source
           src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260314_131748_f2ca2a28-fed7-44c8-b9a9-bd9acdd5ec31.mp4"
@@ -31,13 +31,13 @@ export default function LandingPage() {
       </video>
 
       {/* Overlay */}
-      <div className="absolute inset-0 z-[1]" style={{ background: "linear-gradient(to bottom, hsla(201,100%,13%,0.3), hsla(201,100%,13%,0.7))" }} />
+      <div className="absolute inset-0 z-[1]" style={{ background: "linear-gradient(to bottom, hsla(201,100%,13%,0.55), hsla(201,100%,13%,0.88))" }} />
 
       {/* Navigation */}
       <nav className="relative z-10 flex items-center justify-between px-6 sm:px-8 py-6 max-w-7xl mx-auto">
         <div className="flex items-center gap-3">
-          <div className="relative h-11 w-11 rounded-xl overflow-hidden border border-white/15 flex items-center justify-center bg-white/5">
-            <LottieIcon className="absolute inset-0 w-full h-full opacity-50" loop />
+          <div className="relative h-11 w-11 rounded-xl overflow-hidden border border-white/25 flex items-center justify-center bg-white/12">
+            <LottieIcon className="absolute inset-0 w-full h-full opacity-70" loop />
             <School className="relative z-10 h-6 w-6 text-white drop-shadow-md" strokeWidth={2} aria-hidden />
           </div>
           <h1
@@ -124,7 +124,7 @@ export default function LandingPage() {
               className="liquid-glass rounded-2xl p-6 transition-transform hover:scale-[1.02]"
               style={{ animationDelay: `${0.1 * i}s` }}
             >
-              <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-white">
+              <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-white/18 text-white">
                 <FeatureIcon size={20} strokeWidth={2} aria-hidden />
               </div>
               <h3

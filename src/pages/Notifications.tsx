@@ -1,12 +1,15 @@
 import { useApp } from "@/context/AppContext";
 import { PageHeader } from "@/components/ui-custom/SharedComponents";
-import { DollarSign, Image, CalendarCheck, Megaphone } from "lucide-react";
+import { DollarSign, Image, CalendarCheck, Megaphone, TrendingUp, FileText } from "lucide-react";
+import { isNotificationVisible } from "@/lib/notificationsFilter";
 
 const iconMap: Record<string, React.ReactNode> = {
   fee: <DollarSign size={16} strokeWidth={2} aria-hidden />,
   gallery: <Image size={16} strokeWidth={2} aria-hidden />,
   attendance: <CalendarCheck size={16} strokeWidth={2} aria-hidden />,
   announcement: <Megaphone size={16} strokeWidth={2} aria-hidden />,
+  progress: <TrendingUp size={16} strokeWidth={2} aria-hidden />,
+  report: <FileText size={16} strokeWidth={2} aria-hidden />,
 };
 
 const colorMap: Record<string, string> = {
@@ -14,12 +17,17 @@ const colorMap: Record<string, string> = {
   gallery: "bg-primary-light text-primary",
   attendance: "bg-success/10 text-success",
   announcement: "bg-primary-light text-primary",
+  progress: "bg-violet-500/10 text-violet-700",
+  report: "bg-sky-500/10 text-sky-800",
 };
 
 export default function Notifications() {
-  const { currentUser, notifications, setNotifications } = useApp();
+  const { currentUser, notifications, setNotifications, getChildrenForParent } = useApp();
   if (!currentUser) return null;
-  const filtered = notifications.filter((n) => n.targetRoles.includes(currentUser.role));
+  const children = getChildrenForParent(currentUser.id);
+  const filtered = notifications.filter((n) =>
+    isNotificationVisible(n, currentUser, children, currentUser.classId),
+  );
 
   const markRead = (id: string) => {
     setNotifications((prev) => prev.map((n) => n.id === id ? { ...n, read: true } : n));

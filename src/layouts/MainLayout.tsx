@@ -10,11 +10,11 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-dash-canvas font-sans selection:bg-dash-lime selection:text-dash-ink">
       <Sidebar />
-      <div className="lg:ml-64 flex flex-col min-h-screen">
+      <div className="flex min-h-screen flex-col print:ml-0 lg:pl-[284px]">
         <Navbar />
-        <main className="flex-1 p-4 lg:p-8 animate-fade-in">
+        <main className="flex-1 p-4 lg:p-8 pt-2 lg:pt-2 animate-fade-in relative z-10 w-full max-w-[1600px] mx-auto">
           {children}
         </main>
       </div>

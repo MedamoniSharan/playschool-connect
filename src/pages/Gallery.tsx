@@ -32,13 +32,13 @@ function MediaModal({ item, onClose }: { item: MediaItem; onClose: () => void })
 
 function UploadModal({ onClose, onSave }: { onClose: () => void; onSave: (item: MediaItem) => void }) {
   const { currentUser, getStudentsForTeacher } = useApp();
-  const myStudents = getStudentsForTeacher(currentUser.id);
+  const myStudents = currentUser ? getStudentsForTeacher(currentUser.id) : [];
   const [title, setTitle] = useState("");
   const [event, setEvent] = useState("");
   const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
 
   const handleSave = () => {
-    if (!title || !event || selectedStudents.length === 0) return;
+    if (!currentUser || !title || !event || selectedStudents.length === 0) return;
     const newItem: MediaItem = {
       id: `m${Date.now()}`,
       url: "https://images.unsplash.com/photo-1560421683-6856ea585c78?w=400",

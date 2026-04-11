@@ -20,6 +20,7 @@ export default function Broadcast() {
       date: new Date().toISOString().split("T")[0],
       read: false,
       targetRoles: ["parent", "teacher", "admin"],
+      scope: "global",
     };
     setNotifications((prev) => [newNotification, ...prev]);
     setTitle("");

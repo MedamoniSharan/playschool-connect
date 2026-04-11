@@ -16,7 +16,9 @@ import type { LucideIcon } from "lucide-react";
 import {
   ArrowUpRight,
   Bell,
+  BookOpen,
   CalendarCheck,
+  CalendarDays,
   GraduationCap,
   Image,
   Megaphone,
@@ -24,10 +26,12 @@ import {
   School,
   Settings,
   Sparkles,
+  TrendingUp,
   Upload,
   Users,
   Wallet,
 } from "lucide-react";
+import { countActivitiesForClass } from "@/lib/montessori";
 
 function CapsuleMeter({ value, segments = 22 }: { value: number; segments?: number }) {
   const filled = Math.round((Math.min(100, Math.max(0, value)) / 100) * segments);
@@ -269,7 +273,7 @@ function AdminDashboard() {
                   </div>
                 </div>
                 <span className="inline-flex w-fit items-center rounded-full border border-dash-subtle bg-dash-canvas px-3 py-1.5 text-xs font-semibold text-dash-ink">
-                  2025
+                  2026
                 </span>
               </div>
               <div className="mt-8 h-64 w-full">
@@ -337,6 +341,8 @@ function AdminDashboard() {
                 <span className="text-xs font-bold text-dash-ink">Attendance</span>
               </Link>
             </div>
+            <QuickLinkCard to="/curriculum" title="Curriculum" description="Subjects and Montessori activities by class." icon={BookOpen} />
+            <QuickLinkCard to="/progress" title="Progress" description="Track presented → practiced → mastered." icon={TrendingUp} />
             <QuickLinkCard to="/notifications" title="Notifications" description="Fee alerts, announcements, and gallery updates." icon={Bell} />
             <QuickLinkCard to="/fees" title="Fee center" description="Track pending, paid, and overdue invoices in one place." icon={Wallet} />
             <QuickLinkCard to="/broadcast" title="Broadcast" description="Reach every parent and teacher with one message." icon={Megaphone} />
@@ -397,10 +403,12 @@ function AdminDashboard() {
 }
 
 function TeacherDashboard() {
-  const { currentUser, getStudentsForTeacher, attendance, classes } = useApp();
+  const { currentUser, getStudentsForTeacher, attendance, classes, lessonPlans, getActivitiesWithSubjects } = useApp();
   const myStudents = currentUser ? getStudentsForTeacher(currentUser.id) : [];
   const myClass = classes.find((c) => currentUser && c.teacherId === currentUser.id);
-  const todayAttendance = attendance.find((a) => a.classId === myClass?.id && a.date === "2025-04-10");
+  const todayStr = "2026-04-11";
+  const todayAttendance = attendance.find((a) => a.classId === myClass?.id && a.date === todayStr);
+  const todayPlans = lessonPlans.filter((p) => p.classId === myClass?.id && p.date === todayStr);
   const presentCount = todayAttendance?.records.filter((r) => r.status === "present").length || 0;
   const attPct = myStudents.length ? Math.round((presentCount / myStudents.length) * 100) : 0;
 
@@ -470,6 +478,56 @@ function TeacherDashboard() {
           </ul>
         </div>
         <div className="space-y-4">
+          {todayPlans.length > 0 && (
+            <div className="rounded-[28px] border border-dash-subtle bg-dash-surface p-6 shadow-sm">
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="text-base font-bold text-dash-ink">Today&apos;s lesson plans</h3>
+                <Link to="/lessons" className="text-xs font-bold text-dash-muted hover:text-dash-ink">
+                  Planner
+                </Link>
+              </div>
+              <ul className="mt-3 space-y-2">
+                {todayPlans.slice(0, 4).map((p) => {
+                  const st = myStudents.find((s) => s.id === p.studentId);
+                  const label =
+                    getActivitiesWithSubjects(p.classId).find((x) => x.activity.id === p.activityId)?.activity.name ??
+                    "Activity";
+                  return (
+                    <li key={p.id} className="flex justify-between gap-2 text-sm">
+                      <span className="font-semibold text-dash-ink">{st?.name}</span>
+                      <span className="truncate text-dash-muted">{label}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
+          <Link
+            to="/progress"
+            className="flex items-center gap-4 rounded-[28px] border border-dash-subtle bg-dash-surface p-6 shadow-sm transition-all hover:border-dash-ring"
+          >
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-dash-canvas">
+              <TrendingUp className="h-7 w-7 text-dash-ink" strokeWidth={1.75} />
+            </div>
+            <div>
+              <p className="font-bold text-dash-ink">Progress</p>
+              <p className="text-sm text-dash-muted">One-tap Montessori stages for your class.</p>
+            </div>
+            <ArrowUpRight className="ml-auto h-5 w-5 text-dash-muted" />
+          </Link>
+          <Link
+            to="/lessons"
+            className="flex items-center gap-4 rounded-[28px] border border-dash-subtle bg-dash-surface p-6 shadow-sm transition-all hover:border-dash-ring"
+          >
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-dash-canvas">
+              <CalendarDays className="h-7 w-7 text-dash-ink" strokeWidth={1.75} />
+            </div>
+            <div>
+              <p className="font-bold text-dash-ink">Lesson plans</p>
+              <p className="text-sm text-dash-muted">Schedule work per child and activity.</p>
+            </div>
+            <ArrowUpRight className="ml-auto h-5 w-5 text-dash-muted" />
+          </Link>
           <Link
             to="/gallery"
             className="flex items-center gap-4 rounded-[28px] border border-dash-subtle bg-dash-surface p-6 shadow-sm transition-all hover:border-dash-ring"
@@ -503,7 +561,8 @@ function TeacherDashboard() {
 }
 
 function ParentDashboard() {
-  const { currentUser, getChildrenForParent, gallery, notifications, fees, classes } = useApp();
+  const { currentUser, getChildrenForParent, gallery, notifications, fees, classes, lessonProgress, curriculum } =
+    useApp();
   const children = currentUser ? getChildrenForParent(currentUser.id) : [];
   const childIds = children.map((c) => c.id);
   const childMedia = gallery.filter((m) => m.studentIds.some((id) => childIds.includes(id))).slice(0, 4);
@@ -557,13 +616,22 @@ function ParentDashboard() {
           <ul className="mt-4 divide-y divide-dash-subtle">
             {children.map((child) => {
               const cls = classes.find((c) => c.id === child.classId);
+              const totalActs = countActivitiesForClass(curriculum, child.classId);
+              const mastered = lessonProgress.filter((p) => p.studentId === child.id && p.stage === "mastered").length;
+              const pct = totalActs ? Math.min(100, Math.round((mastered / totalActs) * 100)) : 0;
               return (
                 <li key={child.id} className="flex items-center gap-3 py-3 first:pt-0">
                   <PersonAvatar kind="student" id={child.id} gender={child.gender} />
-                  <div>
+                  <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold text-dash-ink">{child.name}</p>
                     <p className="text-xs text-dash-muted">
                       {cls?.name} · Age {child.age}
+                    </p>
+                    <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-dash-canvas">
+                      <div className="h-full rounded-full bg-dash-ink transition-all" style={{ width: `${pct}%` }} />
+                    </div>
+                    <p className="mt-1 text-[10px] font-semibold uppercase tracking-wide text-dash-muted">
+                      Mastery {pct}% · {mastered}/{totalActs} lessons
                     </p>
                   </div>
                 </li>
