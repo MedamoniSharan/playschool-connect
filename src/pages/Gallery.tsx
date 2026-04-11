@@ -92,7 +92,7 @@ function UploadModal({ onClose, onSave }: { onClose: () => void; onSave: (item: 
 }
 
 export default function Gallery() {
-  const { currentUser, gallery, setGallery, getChildrenForParent } = useApp();
+  const { currentUser, gallery, setGallery, getChildrenForParent, classes } = useApp();
   const [selectedItem, setSelectedItem] = useState<MediaItem | null>(null);
   const [showUpload, setShowUpload] = useState(false);
   const [filterEvent, setFilterEvent] = useState("");
