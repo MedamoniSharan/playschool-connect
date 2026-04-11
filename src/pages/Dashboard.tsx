@@ -1,10 +1,9 @@
 import { useApp } from "@/context/AppContext";
 import { StatCard, PageHeader, Avatar, StatusBadge } from "@/components/ui-custom/SharedComponents";
 import { Users, GraduationCap, DollarSign, Image, CalendarCheck, Upload } from "lucide-react";
-import { classes, students } from "@/data/mockData";
 
 function AdminDashboard() {
-  const { fees, gallery, students: allStudents } = useApp();
+  const { fees, gallery, students: allStudents, classes } = useApp();
   const totalRevenue = fees.filter((f) => f.status === "paid").reduce((a, b) => a + b.amount, 0);
   const pendingFees = fees.filter((f) => f.status !== "paid").length;
 
@@ -61,9 +60,9 @@ function AdminDashboard() {
 }
 
 function TeacherDashboard() {
-  const { currentUser, getStudentsForTeacher, attendance } = useApp();
-  const myStudents = getStudentsForTeacher(currentUser.id);
-  const myClass = classes.find((c) => c.teacherId === currentUser.id);
+  const { currentUser, getStudentsForTeacher, attendance, classes } = useApp();
+  const myStudents = currentUser ? getStudentsForTeacher(currentUser.id) : [];
+  const myClass = classes.find((c) => currentUser && c.teacherId === currentUser.id);
   const todayAttendance = attendance.find((a) => a.classId === myClass?.id && a.date === "2025-04-10");
   const presentCount = todayAttendance?.records.filter((r) => r.status === "present").length || 0;
 
@@ -112,8 +111,8 @@ function TeacherDashboard() {
 }
 
 function ParentDashboard() {
-  const { currentUser, getChildrenForParent, gallery, notifications, fees } = useApp();
-  const children = getChildrenForParent(currentUser.id);
+  const { currentUser, getChildrenForParent, gallery, notifications, fees, classes } = useApp();
+  const children = currentUser ? getChildrenForParent(currentUser.id) : [];
   const childIds = children.map((c) => c.id);
   const childMedia = gallery.filter((m) => m.studentIds.some((id) => childIds.includes(id))).slice(0, 4);
   const childFees = fees.filter((f) => childIds.includes(f.studentId));
@@ -179,10 +178,10 @@ export default function Dashboard() {
 
   return (
     <div>
-      <PageHeader title={`Welcome, ${currentUser.name.split(" ")[0]}!`} description={`${currentUser.role.charAt(0).toUpperCase() + currentUser.role.slice(1)} Dashboard`} />
-      {currentUser.role === "admin" && <AdminDashboard />}
-      {currentUser.role === "teacher" && <TeacherDashboard />}
-      {currentUser.role === "parent" && <ParentDashboard />}
+      <PageHeader title={`Welcome, ${currentUser?.name.split(" ")[0] || ""}!`} description={`${(currentUser?.role || "").charAt(0).toUpperCase() + (currentUser?.role || "").slice(1)} Dashboard`} />
+      {currentUser?.role === "admin" && <AdminDashboard />}
+      {currentUser?.role === "teacher" && <TeacherDashboard />}
+      {currentUser?.role === "parent" && <ParentDashboard />}
     </div>
   );
 }

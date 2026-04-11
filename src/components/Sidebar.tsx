@@ -1,12 +1,12 @@
 import { useApp } from "@/context/AppContext";
-import { NavLink, useLocation } from "react-router-dom";
-import { LayoutDashboard, Image, CalendarCheck, DollarSign, Bell, Send, Users, X, Menu } from "lucide-react";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import { LayoutDashboard, Image, CalendarCheck, DollarSign, Bell, Send, Users, X, Menu, LogOut, GraduationCap } from "lucide-react";
 import { useState } from "react";
 import { Role } from "@/types";
-import { users } from "@/data/mockData";
 
 const navItems = [
-  { to: "/", label: "Dashboard", icon: LayoutDashboard, roles: ["admin", "teacher", "parent"] as Role[] },
+  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ["admin", "teacher", "parent"] as Role[] },
+  { to: "/students", label: "Students", icon: GraduationCap, roles: ["admin", "teacher"] as Role[] },
   { to: "/gallery", label: "Gallery", icon: Image, roles: ["admin", "teacher", "parent"] as Role[] },
   { to: "/attendance", label: "Attendance", icon: CalendarCheck, roles: ["admin", "teacher", "parent"] as Role[] },
   { to: "/fees", label: "Fees", icon: DollarSign, roles: ["admin", "parent"] as Role[] },
@@ -15,11 +15,19 @@ const navItems = [
 ];
 
 export default function Sidebar() {
-  const { currentUser, setCurrentUser } = useApp();
+  const { currentUser, logout } = useApp();
   const location = useLocation();
+  const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
 
+  if (!currentUser) return null;
+
   const filteredNav = navItems.filter((item) => item.roles.includes(currentUser.role));
+
+  const handleLogout = () => {
+    logout();
+    navigate("/");
+  };
 
   const sidebarContent = (
     <div className="flex flex-col h-full">
@@ -36,28 +44,11 @@ export default function Sidebar() {
         </div>
       </div>
 
-      {/* Role Switcher */}
-      <div className="px-4 py-4 border-b border-sidebar-border">
-        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2 block">Switch Role</label>
-        <div className="flex gap-1">
-          {(["admin", "teacher", "parent"] as Role[]).map((role) => (
-            <button
-              key={role}
-              onClick={() => {
-                const u = users.find((u) => u.role === role);
-                if (u) setCurrentUser(u);
-                setMobileOpen(false);
-              }}
-              className={`flex-1 text-xs py-1.5 px-2 rounded-md font-medium capitalize transition-colors ${
-                currentUser.role === role
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-secondary text-secondary-foreground hover:bg-sidebar-hover"
-              }`}
-            >
-              {role}
-            </button>
-          ))}
-        </div>
+      {/* Role badge */}
+      <div className="px-4 py-3 border-b border-sidebar-border">
+        <span className="text-xs font-medium px-2.5 py-1 bg-primary-light text-primary rounded-full capitalize">
+          {currentUser.role}
+        </span>
       </div>
 
       {/* Nav */}
@@ -82,37 +73,33 @@ export default function Sidebar() {
         })}
       </nav>
 
-      {/* User info */}
-      <div className="p-4 border-t border-sidebar-border">
+      {/* User info + logout */}
+      <div className="p-4 border-t border-sidebar-border space-y-3">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-full bg-primary-light flex items-center justify-center">
             <span className="text-primary text-xs font-semibold">{currentUser.avatar}</span>
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-foreground truncate">{currentUser.name}</p>
-            <p className="text-xs text-muted-foreground capitalize">{currentUser.role}</p>
+            <p className="text-xs text-muted-foreground">{currentUser.email}</p>
           </div>
         </div>
+        <button onClick={handleLogout}
+          className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors">
+          <LogOut size={16} /> Sign Out
+        </button>
       </div>
     </div>
   );
 
   return (
     <>
-      {/* Mobile toggle */}
-      <button
-        onClick={() => setMobileOpen(true)}
-        className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-card rounded-lg shadow-md"
-      >
+      <button onClick={() => setMobileOpen(true)} className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-card rounded-lg shadow-md">
         <Menu size={20} />
       </button>
-
-      {/* Mobile overlay */}
       {mobileOpen && (
         <div className="fixed inset-0 bg-foreground/20 backdrop-blur-sm z-40 lg:hidden" onClick={() => setMobileOpen(false)} />
       )}
-
-      {/* Mobile sidebar */}
       <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-sidebar border-r border-sidebar-border transform transition-transform lg:hidden ${
         mobileOpen ? "translate-x-0" : "-translate-x-full"
       }`}>
@@ -121,8 +108,6 @@ export default function Sidebar() {
         </button>
         {sidebarContent}
       </aside>
-
-      {/* Desktop sidebar */}
       <aside className="hidden lg:flex lg:flex-col lg:w-64 lg:fixed lg:inset-y-0 bg-sidebar border-r border-sidebar-border">
         {sidebarContent}
       </aside>
