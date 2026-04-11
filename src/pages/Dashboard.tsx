@@ -3,7 +3,7 @@ import { StatCard, PageHeader, Avatar, StatusBadge } from "@/components/ui-custo
 import { Users, GraduationCap, DollarSign, Image, CalendarCheck, Upload } from "lucide-react";
 
 function AdminDashboard() {
-  const { fees, gallery, students: allStudents } = useApp();
+  const { fees, gallery, students: allStudents, classes } = useApp();
   const totalRevenue = fees.filter((f) => f.status === "paid").reduce((a, b) => a + b.amount, 0);
   const pendingFees = fees.filter((f) => f.status !== "paid").length;
 
@@ -60,9 +60,9 @@ function AdminDashboard() {
 }
 
 function TeacherDashboard() {
-  const { currentUser, getStudentsForTeacher, attendance } = useApp();
-  const myStudents = getStudentsForTeacher(currentUser.id);
-  const myClass = classes.find((c) => c.teacherId === currentUser.id);
+  const { currentUser, getStudentsForTeacher, attendance, classes } = useApp();
+  const myStudents = currentUser ? getStudentsForTeacher(currentUser.id) : [];
+  const myClass = classes.find((c) => currentUser && c.teacherId === currentUser.id);
   const todayAttendance = attendance.find((a) => a.classId === myClass?.id && a.date === "2025-04-10");
   const presentCount = todayAttendance?.records.filter((r) => r.status === "present").length || 0;
 
