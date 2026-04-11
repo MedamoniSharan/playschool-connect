@@ -18,6 +18,7 @@ const colorMap: Record<string, string> = {
 
 export default function Notifications() {
   const { currentUser, notifications, setNotifications } = useApp();
+  if (!currentUser) return null;
   const filtered = notifications.filter((n) => n.targetRoles.includes(currentUser.role));
 
   const markRead = (id: string) => {

@@ -52,6 +52,8 @@ export default function Fees() {
   const { currentUser, fees, setFees, getChildrenForParent } = useApp();
   const [showCreate, setShowCreate] = useState(false);
 
+  if (!currentUser) return null;
+
   let displayFees = fees;
   if (currentUser.role === "parent") {
     const childIds = getChildrenForParent(currentUser.id).map((c) => c.id);
