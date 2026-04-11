@@ -111,8 +111,8 @@ function TeacherDashboard() {
 }
 
 function ParentDashboard() {
-  const { currentUser, getChildrenForParent, gallery, notifications, fees } = useApp();
-  const children = getChildrenForParent(currentUser.id);
+  const { currentUser, getChildrenForParent, gallery, notifications, fees, classes } = useApp();
+  const children = currentUser ? getChildrenForParent(currentUser.id) : [];
   const childIds = children.map((c) => c.id);
   const childMedia = gallery.filter((m) => m.studentIds.some((id) => childIds.includes(id))).slice(0, 4);
   const childFees = fees.filter((f) => childIds.includes(f.studentId));
