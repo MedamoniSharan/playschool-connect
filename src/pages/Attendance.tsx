@@ -7,6 +7,8 @@ export default function Attendance() {
   const { currentUser, attendance, setAttendance, getChildrenForParent, getStudentsForTeacher, classes } = useApp();
   const [selectedDate] = useState("2025-04-10");
 
+  if (!currentUser) return null;
+
   if (currentUser.role === "teacher") {
     const myClass = classes.find((c) => c.teacherId === currentUser.id);
     const myStudents = getStudentsForTeacher(currentUser.id);

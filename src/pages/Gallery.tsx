@@ -97,6 +97,8 @@ export default function Gallery() {
   const [showUpload, setShowUpload] = useState(false);
   const [filterEvent, setFilterEvent] = useState("");
 
+  if (!currentUser) return null;
+
   let filteredGallery = gallery;
 
   if (currentUser.role === "parent") {
