@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useApp } from "@/context/AppContext";
-import { PageHeader, Avatar, StatusBadge } from "@/components/ui-custom/SharedComponents";
+import { PageHeader, PersonAvatar, StatusBadge } from "@/components/ui-custom/SharedComponents";
 import { students as allStudents } from "@/data/mockData";
 
 export default function Attendance() {
@@ -47,7 +47,7 @@ export default function Attendance() {
                   <tr key={s.id} className="border-b border-border last:border-0">
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-3">
-                        <Avatar initials={s.avatar} size="sm" />
+                        <PersonAvatar kind="student" id={s.id} gender={s.gender} size="sm" />
                         <span className="text-sm font-medium">{s.name}</span>
                       </div>
                     </td>
@@ -81,7 +81,7 @@ export default function Attendance() {
             return (
               <div key={child.id} className="bg-card rounded-xl border border-border p-5">
                 <div className="flex items-center gap-3 mb-4">
-                  <Avatar initials={child.avatar} />
+                  <PersonAvatar kind="student" id={child.id} gender={child.gender} />
                   <div>
                     <p className="font-medium">{child.name}</p>
                     <p className="text-xs text-muted-foreground">{classes.find(c => c.id === child.classId)?.name}</p>
@@ -139,7 +139,11 @@ export default function Attendance() {
                   return (
                     <div key={r.studentId} className="flex items-center justify-between py-1.5">
                       <div className="flex items-center gap-2">
-                        <Avatar initials={student?.avatar || ""} size="sm" />
+                        {student ? (
+                          <PersonAvatar kind="student" id={student.id} gender={student.gender} size="sm" />
+                        ) : (
+                          <PersonAvatar kind="student" id={r.studentId} gender="male" size="sm" />
+                        )}
                         <span className="text-sm">{student?.name}</span>
                       </div>
                       <StatusBadge status={r.status} />

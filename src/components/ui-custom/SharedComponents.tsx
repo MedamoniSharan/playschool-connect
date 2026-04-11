@@ -1,4 +1,13 @@
 import { cn } from "@/lib/utils";
+import type { LucideIcon } from "lucide-react";
+import { Baby, GraduationCap, Shield, Users } from "lucide-react";
+import type { Role } from "@/types";
+
+function hueFromId(id: string) {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h + id.charCodeAt(i) * 17) % 360;
+  return h;
+}
 
 interface StatCardProps {
   title: string;
@@ -40,11 +49,41 @@ export function StatusBadge({ status }: { status: string }) {
   );
 }
 
-export function Avatar({ initials, size = "md" }: { initials: string; size?: "sm" | "md" | "lg" }) {
-  const sizes = { sm: "w-8 h-8 text-xs", md: "w-10 h-10 text-sm", lg: "w-12 h-12 text-base" };
+export type PersonAvatarProps =
+  | { kind: "user"; id: string; role: Role; size?: "sm" | "md" | "lg" }
+  | { kind: "student"; id: string; gender: "male" | "female"; size?: "sm" | "md" | "lg" };
+
+export function PersonAvatar(props: PersonAvatarProps) {
+  const size = props.size ?? "md";
+  const sizes = { sm: "w-8 h-8", md: "w-10 h-10", lg: "w-12 h-12" };
+  const iconSizes = { sm: 14, md: 18, lg: 22 };
+
+  let Icon: LucideIcon;
+  let bg: string;
+  let fg: string;
+
+  if (props.kind === "student") {
+    Icon = Baby;
+    bg = props.gender === "female" ? "hsl(330, 42%, 93%)" : "hsl(215, 42%, 93%)";
+    fg = props.gender === "female" ? "hsl(330, 50%, 40%)" : "hsl(215, 50%, 38%)";
+  } else {
+    const h = hueFromId(props.id);
+    bg = `hsl(${h}, 32%, 93%)`;
+    fg = `hsl(${h}, 45%, 36%)`;
+    if (props.role === "admin") Icon = Shield;
+    else if (props.role === "teacher") Icon = GraduationCap;
+    else Icon = Users;
+  }
+
   return (
-    <div className={cn("rounded-full bg-primary-light flex items-center justify-center text-primary font-semibold", sizes[size])}>
-      {initials}
+    <div
+      className={cn(
+        "rounded-full flex items-center justify-center shrink-0 shadow-sm ring-1 ring-border/60",
+        sizes[size],
+      )}
+      style={{ backgroundColor: bg, color: fg }}
+    >
+      <Icon size={iconSizes[size]} strokeWidth={2} />
     </div>
   );
 }

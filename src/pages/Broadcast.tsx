@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useApp } from "@/context/AppContext";
 import { PageHeader } from "@/components/ui-custom/SharedComponents";
-import { Send } from "lucide-react";
+import { Check, Send } from "lucide-react";
 import { Notification } from "@/types";
 
 export default function Broadcast() {
@@ -40,7 +40,12 @@ export default function Broadcast() {
           <button onClick={handleSend} className="flex items-center gap-2 px-5 py-2.5 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:opacity-90 transition-opacity">
             <Send size={16} /> Send Broadcast
           </button>
-          {sent && <p className="text-sm text-success font-medium">✓ Broadcast sent successfully!</p>}
+          {sent && (
+            <p className="text-sm text-success font-medium flex items-center gap-1.5">
+              <Check size={16} strokeWidth={2} className="shrink-0" aria-hidden />
+              Broadcast sent successfully.
+            </p>
+          )}
         </div>
       </div>
     </div>

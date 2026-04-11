@@ -1,6 +1,8 @@
 import { useApp } from "@/context/AppContext";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Image, CalendarCheck, DollarSign, Bell, Send, Users, X, Menu, LogOut, GraduationCap } from "lucide-react";
+import { LayoutDashboard, Image, CalendarCheck, DollarSign, Bell, Send, Users, X, Menu, LogOut, GraduationCap, School } from "lucide-react";
+import { LottieIcon } from "@/components/LottieIcon";
+import { PersonAvatar } from "@/components/ui-custom/SharedComponents";
 import { useState } from "react";
 import { Role } from "@/types";
 
@@ -34,8 +36,9 @@ export default function Sidebar() {
       {/* Logo */}
       <div className="p-6 border-b border-sidebar-border">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
-            <span className="text-primary-foreground font-bold text-lg">S</span>
+          <div className="relative w-10 h-10 rounded-xl bg-primary/10 border border-primary/15 overflow-hidden flex items-center justify-center">
+            <LottieIcon className="absolute inset-0 w-full h-full opacity-[0.45]" loop />
+            <School className="relative z-10 h-5 w-5 text-primary" strokeWidth={2} aria-hidden />
           </div>
           <div>
             <h1 className="font-semibold text-foreground text-sm">Smart Playschool</h1>
@@ -76,9 +79,7 @@ export default function Sidebar() {
       {/* User info + logout */}
       <div className="p-4 border-t border-sidebar-border space-y-3">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full bg-primary-light flex items-center justify-center">
-            <span className="text-primary text-xs font-semibold">{currentUser.avatar}</span>
-          </div>
+          <PersonAvatar kind="user" id={currentUser.id} role={currentUser.role} size="md" />
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-foreground truncate">{currentUser.name}</p>
             <p className="text-xs text-muted-foreground">{currentUser.email}</p>

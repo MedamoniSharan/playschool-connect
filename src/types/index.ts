@@ -6,7 +6,8 @@ export interface User {
   role: Role;
   email: string;
   password: string;
-  avatar: string;
+  /** Optional profile photo URL */
+  avatar?: string;
   classId?: string;
   childIds?: string[];
 }
@@ -18,7 +19,8 @@ export interface Student {
   classId: string;
   section: string;
   parentId: string;
-  avatar: string;
+  /** Optional profile photo URL */
+  avatar?: string;
   gender: "male" | "female";
   enrollmentDate: string;
 }

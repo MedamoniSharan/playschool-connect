@@ -1,12 +1,12 @@
 import { useApp } from "@/context/AppContext";
 import { PageHeader } from "@/components/ui-custom/SharedComponents";
-import { Bell, DollarSign, Image, CalendarCheck, Megaphone } from "lucide-react";
+import { DollarSign, Image, CalendarCheck, Megaphone } from "lucide-react";
 
 const iconMap: Record<string, React.ReactNode> = {
-  fee: <DollarSign size={16} />,
-  gallery: <Image size={16} />,
-  attendance: <CalendarCheck size={16} />,
-  announcement: <Megaphone size={16} />,
+  fee: <DollarSign size={16} strokeWidth={2} aria-hidden />,
+  gallery: <Image size={16} strokeWidth={2} aria-hidden />,
+  attendance: <CalendarCheck size={16} strokeWidth={2} aria-hidden />,
+  announcement: <Megaphone size={16} strokeWidth={2} aria-hidden />,
 };
 
 const colorMap: Record<string, string> = {

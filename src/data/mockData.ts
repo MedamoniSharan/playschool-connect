@@ -1,21 +1,21 @@
 import { User, Student, ClassRoom, MediaItem, AttendanceRecord, FeeEntry, Notification } from "@/types";
 
 export const users: User[] = [
-  { id: "u1", name: "Priya Sharma", role: "admin", email: "admin@smartplay.com", password: "admin123", avatar: "PS" },
-  { id: "u2", name: "Rahul Mehta", role: "teacher", email: "teacher@smartplay.com", password: "teacher123", avatar: "RM", classId: "c1" },
-  { id: "u3", name: "Anita Verma", role: "teacher", email: "anita@smartplay.com", password: "teacher123", avatar: "AV", classId: "c2" },
-  { id: "u4", name: "Sanjay Gupta", role: "parent", email: "parent@smartplay.com", password: "parent123", avatar: "SG", childIds: ["s1", "s3"] },
-  { id: "u5", name: "Meera Patel", role: "parent", email: "meera@gmail.com", password: "parent123", avatar: "MP", childIds: ["s2"] },
-  { id: "u6", name: "Vikram Singh", role: "parent", email: "vikram@gmail.com", password: "parent123", avatar: "VS", childIds: ["s4"] },
+  { id: "u1", name: "Priya Sharma", role: "admin", email: "admin@smartplay.com", password: "admin123" },
+  { id: "u2", name: "Rahul Mehta", role: "teacher", email: "teacher@smartplay.com", password: "teacher123", classId: "c1" },
+  { id: "u3", name: "Anita Verma", role: "teacher", email: "anita@smartplay.com", password: "teacher123", classId: "c2" },
+  { id: "u4", name: "Sanjay Gupta", role: "parent", email: "parent@smartplay.com", password: "parent123", childIds: ["s1", "s3"] },
+  { id: "u5", name: "Meera Patel", role: "parent", email: "meera@gmail.com", password: "parent123", childIds: ["s2"] },
+  { id: "u6", name: "Vikram Singh", role: "parent", email: "vikram@gmail.com", password: "parent123", childIds: ["s4"] },
 ];
 
 export const students: Student[] = [
-  { id: "s1", name: "Aarav Gupta", age: 4, classId: "c1", section: "A", parentId: "u4", avatar: "AG", gender: "male", enrollmentDate: "2024-06-15" },
-  { id: "s2", name: "Ishita Patel", age: 3, classId: "c1", section: "A", parentId: "u5", avatar: "IP", gender: "female", enrollmentDate: "2024-07-01" },
-  { id: "s3", name: "Reyansh Gupta", age: 5, classId: "c2", section: "A", parentId: "u4", avatar: "RG", gender: "male", enrollmentDate: "2024-06-20" },
-  { id: "s4", name: "Anaya Singh", age: 4, classId: "c2", section: "B", parentId: "u6", avatar: "AS", gender: "female", enrollmentDate: "2024-08-10" },
-  { id: "s5", name: "Vihaan Kumar", age: 3, classId: "c1", section: "B", parentId: "u4", avatar: "VK", gender: "male", enrollmentDate: "2024-09-01" },
-  { id: "s6", name: "Diya Reddy", age: 5, classId: "c2", section: "B", parentId: "u5", avatar: "DR", gender: "female", enrollmentDate: "2024-07-15" },
+  { id: "s1", name: "Aarav Gupta", age: 4, classId: "c1", section: "A", parentId: "u4", gender: "male", enrollmentDate: "2024-06-15" },
+  { id: "s2", name: "Ishita Patel", age: 3, classId: "c1", section: "A", parentId: "u5", gender: "female", enrollmentDate: "2024-07-01" },
+  { id: "s3", name: "Reyansh Gupta", age: 5, classId: "c2", section: "A", parentId: "u4", gender: "male", enrollmentDate: "2024-06-20" },
+  { id: "s4", name: "Anaya Singh", age: 4, classId: "c2", section: "B", parentId: "u6", gender: "female", enrollmentDate: "2024-08-10" },
+  { id: "s5", name: "Vihaan Kumar", age: 3, classId: "c1", section: "B", parentId: "u4", gender: "male", enrollmentDate: "2024-09-01" },
+  { id: "s6", name: "Diya Reddy", age: 5, classId: "c2", section: "B", parentId: "u5", gender: "female", enrollmentDate: "2024-07-15" },
 ];
 
 export const classes: ClassRoom[] = [

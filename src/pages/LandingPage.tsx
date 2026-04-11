@@ -1,4 +1,14 @@
 import { useNavigate } from "react-router-dom";
+import {
+  CalendarCheck,
+  Image,
+  IndianRupee,
+  Megaphone,
+  School,
+  Shield,
+  Users,
+} from "lucide-react";
+import { LottieIcon } from "@/components/LottieIcon";
 
 export default function LandingPage() {
   const navigate = useNavigate();
@@ -25,12 +35,18 @@ export default function LandingPage() {
 
       {/* Navigation */}
       <nav className="relative z-10 flex items-center justify-between px-6 sm:px-8 py-6 max-w-7xl mx-auto">
-        <h1
-          className="text-3xl tracking-tight"
-          style={{ fontFamily: "'Instrument Serif', serif", color: "hsl(0, 0%, 100%)" }}
-        >
-          Smart Playschool<sup className="text-xs">®</sup>
-        </h1>
+        <div className="flex items-center gap-3">
+          <div className="relative h-11 w-11 rounded-xl overflow-hidden border border-white/15 flex items-center justify-center bg-white/5">
+            <LottieIcon className="absolute inset-0 w-full h-full opacity-50" loop />
+            <School className="relative z-10 h-6 w-6 text-white drop-shadow-md" strokeWidth={2} aria-hidden />
+          </div>
+          <h1
+            className="text-2xl sm:text-3xl tracking-tight"
+            style={{ fontFamily: "'Instrument Serif', serif", color: "hsl(0, 0%, 100%)" }}
+          >
+            Smart Playschool<sup className="text-xs">®</sup>
+          </h1>
+        </div>
 
         <div className="hidden md:flex items-center gap-8">
           {["Home", "About", "Features", "Contact"].map((link, i) => (
@@ -49,9 +65,10 @@ export default function LandingPage() {
 
         <button
           onClick={() => navigate("/login")}
-          className="liquid-glass rounded-full px-6 py-2.5 text-sm cursor-pointer transition-transform hover:scale-[1.03]"
+          className="liquid-glass rounded-full px-6 py-2.5 text-sm cursor-pointer transition-transform hover:scale-[1.03] inline-flex items-center gap-2"
           style={{ color: "hsl(0,0%,100%)" }}
         >
+          <School size={16} strokeWidth={2} className="opacity-90 shrink-0" aria-hidden />
           Get Started
         </button>
       </nav>
@@ -81,9 +98,10 @@ export default function LandingPage() {
 
         <button
           onClick={() => navigate("/login")}
-          className="animate-fade-rise-delay-2 liquid-glass rounded-full px-14 py-5 text-base cursor-pointer transition-transform hover:scale-[1.03] mt-12"
+          className="animate-fade-rise-delay-2 liquid-glass rounded-full px-14 py-5 text-base cursor-pointer transition-transform hover:scale-[1.03] mt-12 inline-flex items-center gap-2.5"
           style={{ color: "hsl(0,0%,100%)" }}
         >
+          <Users size={18} strokeWidth={2} className="opacity-90 shrink-0" aria-hidden />
           Begin Journey
         </button>
       </section>
@@ -92,18 +110,23 @@ export default function LandingPage() {
       <section className="relative z-10 max-w-6xl mx-auto px-6 pb-20 sm:pb-32">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {[
-            { title: "Student Management", desc: "Add, manage, and assign students to classes and sections effortlessly." },
-            { title: "Attendance Tracking", desc: "Mark and view attendance with real-time insights for every class." },
-            { title: "Photo Gallery", desc: "Upload and share event photos — parents see only their child's media." },
-            { title: "Fee Management", desc: "Create fee entries, track payments, and send reminders seamlessly." },
-            { title: "Role-Based Access", desc: "Admin, teacher, and parent views — each with tailored capabilities." },
-            { title: "Broadcast Alerts", desc: "Send announcements to all stakeholders instantly from the dashboard." },
-          ].map((feature, i) => (
+            { title: "Student Management", desc: "Add, manage, and assign students to classes and sections effortlessly.", Icon: Users },
+            { title: "Attendance Tracking", desc: "Mark and view attendance with real-time insights for every class.", Icon: CalendarCheck },
+            { title: "Photo Gallery", desc: "Upload and share event photos — parents see only their child's media.", Icon: Image },
+            { title: "Fee Management", desc: "Create fee entries, track payments, and send reminders seamlessly.", Icon: IndianRupee },
+            { title: "Role-Based Access", desc: "Admin, teacher, and parent views — each with tailored capabilities.", Icon: Shield },
+            { title: "Broadcast Alerts", desc: "Send announcements to all stakeholders instantly from the dashboard.", Icon: Megaphone },
+          ].map((feature, i) => {
+            const FeatureIcon = feature.Icon;
+            return (
             <div
-              key={i}
+              key={feature.title}
               className="liquid-glass rounded-2xl p-6 transition-transform hover:scale-[1.02]"
               style={{ animationDelay: `${0.1 * i}s` }}
             >
+              <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-white">
+                <FeatureIcon size={20} strokeWidth={2} aria-hidden />
+              </div>
               <h3
                 className="text-lg font-normal mb-2"
                 style={{ fontFamily: "'Instrument Serif', serif", color: "hsl(0,0%,100%)" }}
@@ -114,7 +137,8 @@ export default function LandingPage() {
                 {feature.desc}
               </p>
             </div>
-          ))}
+            );
+          })}
         </div>
       </section>
     </div>

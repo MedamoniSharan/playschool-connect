@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useApp } from "@/context/AppContext";
-import { PageHeader, StatusBadge, Avatar } from "@/components/ui-custom/SharedComponents";
+import { PageHeader, StatusBadge, PersonAvatar } from "@/components/ui-custom/SharedComponents";
 import { Plus, X } from "lucide-react";
 import { students as allStudents } from "@/data/mockData";
 import { FeeEntry } from "@/types";
@@ -95,8 +95,12 @@ export default function Fees() {
                   <tr key={fee.id} className="border-b border-border last:border-0">
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-2">
-                        <Avatar initials={student?.avatar || ""} size="sm" />
-                        <span className="text-sm font-medium">{student?.name}</span>
+                        {student ? (
+                          <PersonAvatar kind="student" id={student.id} gender={student.gender} size="sm" />
+                        ) : (
+                          <PersonAvatar kind="student" id={fee.studentId} gender="male" size="sm" />
+                        )}
+                        <span className="text-sm font-medium">{student?.name ?? "Unknown"}</span>
                       </div>
                     </td>
                     <td className="py-3 px-4 text-sm">{fee.description}</td>

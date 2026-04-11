@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useApp } from "@/context/AppContext";
-import { Eye, EyeOff, LogIn } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, GraduationCap, LogIn, School, Shield, Users } from "lucide-react";
+import { LottieIcon } from "@/components/LottieIcon";
 
 export default function LoginPage() {
   const { login } = useApp();
@@ -57,8 +58,12 @@ export default function LoginPage() {
         <div className="w-full max-w-md animate-fade-rise">
           <div className="liquid-glass rounded-2xl p-8">
             <div className="text-center mb-8">
-              <div className="w-14 h-14 rounded-2xl mx-auto mb-4 flex items-center justify-center" style={{ background: "hsl(350,80%,55%)" }}>
-                <span className="text-2xl font-bold" style={{ color: "hsl(0,0%,100%)" }}>S</span>
+              <div
+                className="relative w-14 h-14 rounded-2xl mx-auto mb-4 overflow-hidden flex items-center justify-center border border-white/10"
+                style={{ background: "hsla(350,80%,55%,0.25)" }}
+              >
+                <LottieIcon className="absolute inset-0 w-full h-full opacity-40" loop />
+                <School className="relative z-10 h-7 w-7" style={{ color: "hsl(0,0%,100%)" }} strokeWidth={2} aria-hidden />
               </div>
               <h2
                 className="text-2xl"
@@ -133,29 +138,35 @@ export default function LoginPage() {
               <p className="text-xs font-medium mb-3" style={{ color: "hsl(240,4%,66%)" }}>Quick Login (Demo)</p>
               <div className="grid grid-cols-3 gap-2">
                 {[
-                  { label: "Admin", email: "admin@smartplay.com", password: "admin123", color: "hsl(350,80%,55%)" },
-                  { label: "Teacher", email: "teacher@smartplay.com", password: "teacher123", color: "hsl(38,92%,55%)" },
-                  { label: "Parent", email: "parent@smartplay.com", password: "parent123", color: "hsl(142,72%,42%)" },
-                ].map((opt) => (
+                  { label: "Admin", email: "admin@smartplay.com", password: "admin123", color: "hsl(350,80%,55%)", Icon: Shield },
+                  { label: "Teacher", email: "teacher@smartplay.com", password: "teacher123", color: "hsl(38,92%,55%)", Icon: GraduationCap },
+                  { label: "Parent", email: "parent@smartplay.com", password: "parent123", color: "hsl(142,72%,42%)", Icon: Users },
+                ].map((opt) => {
+                  const QuickIcon = opt.Icon;
+                  return (
                   <button
                     key={opt.label}
                     onClick={() => quickLogin(opt.email, opt.password)}
-                    className="py-2 rounded-lg text-xs font-medium transition-transform hover:scale-[1.02]"
+                    className="py-2 rounded-lg text-xs font-medium transition-transform hover:scale-[1.02] flex items-center justify-center gap-1.5"
                     style={{ background: `${opt.color}20`, color: opt.color }}
                   >
+                    <QuickIcon size={14} strokeWidth={2} className="shrink-0" aria-hidden />
                     {opt.label}
                   </button>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </div>
 
           <button
+            type="button"
             onClick={() => navigate("/")}
-            className="mt-4 text-xs block mx-auto transition-colors"
+            className="mt-4 text-xs mx-auto flex items-center justify-center gap-1.5 transition-colors"
             style={{ color: "hsl(240,4%,66%)" }}
           >
-            ← Back to home
+            <ArrowLeft size={14} strokeWidth={2} aria-hidden />
+            Back to home
           </button>
         </div>
       </div>

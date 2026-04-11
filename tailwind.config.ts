@@ -61,6 +61,18 @@ export default {
           hover: "hsl(var(--sidebar-hover))",
           border: "hsl(var(--sidebar-border))",
         },
+        /* Dribbble-style dashboard (charcoal + neon lime) */
+        dash: {
+          ink: "#0a0a0a",
+          muted: "#737373",
+          subtle: "#e5e5e5",
+          surface: "#ffffff",
+          canvas: "#f4f4f5",
+          lime: "#dcfb6e",
+          "lime-deep": "#c4e636",
+          pill: "#ebebeb",
+          ring: "#d4d4d4",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",

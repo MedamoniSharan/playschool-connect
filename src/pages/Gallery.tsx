@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useApp } from "@/context/AppContext";
 import { PageHeader, StatusBadge } from "@/components/ui-custom/SharedComponents";
-import { X, Plus, Trash2, Filter } from "lucide-react";
+import { X, Plus, Trash2, Filter, ImagePlus } from "lucide-react";
 import { MediaItem } from "@/types";
 import { students as allStudents } from "@/data/mockData";
 
@@ -65,9 +65,12 @@ function UploadModal({ onClose, onSave }: { onClose: () => void; onSave: (item: 
           <button onClick={onClose}><X size={18} /></button>
         </div>
         <div className="space-y-4">
-          <div className="border-2 border-dashed border-border rounded-xl p-8 text-center">
+          <div className="border-2 border-dashed border-border rounded-xl p-8 text-center flex flex-col items-center gap-2">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-secondary text-primary">
+              <ImagePlus size={22} strokeWidth={2} aria-hidden />
+            </div>
             <p className="text-muted-foreground text-sm">Click to upload or drag & drop</p>
-            <p className="text-xs text-muted-foreground mt-1">PNG, JPG up to 10MB</p>
+            <p className="text-xs text-muted-foreground">PNG, JPG up to 10MB</p>
           </div>
           <input placeholder="Title" value={title} onChange={(e) => setTitle(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm outline-none focus:ring-2 focus:ring-ring" />
           <input placeholder="Event name" value={event} onChange={(e) => setEvent(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm outline-none focus:ring-2 focus:ring-ring" />
