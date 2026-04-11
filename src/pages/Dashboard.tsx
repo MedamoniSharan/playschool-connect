@@ -175,6 +175,7 @@ function ParentDashboard() {
 
 export default function Dashboard() {
   const { currentUser } = useApp();
+  if (!currentUser) return null;
 
   return (
     <div>
