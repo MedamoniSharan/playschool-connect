@@ -1,4 +1,4 @@
-# Smart Playschool & Montessori Connect
+# Little Berries & Montessori Connect
 
 Frontend-only demo of a playschool and Montessori management system: role-based dashboards, curriculum, one-tap lesson progress (presented → practiced → mastered), lesson planning, reports, gallery, attendance, fees, notifications, and messaging.
 

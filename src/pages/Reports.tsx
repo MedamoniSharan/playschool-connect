@@ -66,9 +66,9 @@ export default function Reports() {
       />
 
       {canGenerate && roster.length > 0 && (
-        <div className="mb-6 flex flex-wrap items-end gap-3 rounded-xl border border-border bg-card p-4 print:hidden">
+        <div className="mb-6 flex flex-wrap items-end gap-3 rounded-[24px] border border-dash-subtle bg-dash-surface p-4 print:hidden">
           <div className="min-w-[200px] flex-1">
-            <p className="mb-1 text-xs font-medium text-muted-foreground">Student</p>
+            <p className="mb-1 text-xs font-medium text-dash-muted">Student</p>
             <Select value={effectiveId} onValueChange={setSelectedStudentId}>
               <SelectTrigger>
                 <SelectValue placeholder="Choose student" />
@@ -95,7 +95,7 @@ export default function Reports() {
 
       <div id="report-print-root" className="space-y-8">
         {visibleReports.length === 0 ? (
-          <p className="text-center text-muted-foreground py-12">No reports yet.</p>
+          <p className="text-center text-dash-muted py-12">No reports yet.</p>
         ) : (
           visibleReports.map((rep) => {
             const s = students.find((x) => x.id === rep.studentId);
@@ -103,43 +103,43 @@ export default function Reports() {
             return (
               <article
                 key={rep.id}
-                className="overflow-hidden rounded-xl border border-border bg-card print:shadow-none print:border-foreground/20"
+                className="overflow-hidden rounded-[24px] border border-dash-subtle bg-dash-surface print:shadow-none print:border-foreground/20"
               >
-                <div className="border-b border-border bg-muted/40 px-6 py-4 print:bg-transparent">
+                <div className="border-b border-dash-subtle bg-muted/40 px-6 py-4 print:bg-transparent">
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex items-center gap-3">
                       {s && <PersonAvatar kind="student" id={s.id} gender={s.gender} />}
                       <div>
                         <h2 className="text-lg font-bold">{s?.name}</h2>
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-sm text-dash-muted">
                           {cls?.name} · {rep.periodLabel}
                         </p>
                       </div>
                     </div>
-                    <p className="text-xs text-muted-foreground">Generated {rep.generatedAt}</p>
+                    <p className="text-xs text-dash-muted">Generated {rep.generatedAt}</p>
                   </div>
                 </div>
                 <div className="grid gap-6 p-6 md:grid-cols-2">
                   <div>
-                    <p className="text-xs font-semibold uppercase text-muted-foreground">Lessons presented</p>
+                    <p className="text-xs font-semibold uppercase text-dash-muted">Lessons presented</p>
                     <p className="text-3xl font-bold">{rep.lessonsPresented}</p>
                   </div>
                   <div>
-                    <p className="text-xs font-semibold uppercase text-muted-foreground">In practice</p>
+                    <p className="text-xs font-semibold uppercase text-dash-muted">In practice</p>
                     <p className="text-3xl font-bold">{rep.lessonsPracticed}</p>
                   </div>
                   <div>
-                    <p className="text-xs font-semibold uppercase text-muted-foreground">Mastered</p>
+                    <p className="text-xs font-semibold uppercase text-dash-muted">Mastered</p>
                     <p className="text-3xl font-bold">{rep.lessonsMastered}</p>
                   </div>
                   <div>
-                    <p className="text-xs font-semibold uppercase text-muted-foreground">Attendance</p>
+                    <p className="text-xs font-semibold uppercase text-dash-muted">Attendance</p>
                     <p className="text-3xl font-bold">{rep.attendanceRate}%</p>
                   </div>
                 </div>
                 {rep.narrative && (
-                  <div className="border-t border-border px-6 py-4">
-                    <p className="text-sm leading-relaxed text-foreground">{rep.narrative}</p>
+                  <div className="border-t border-dash-subtle px-6 py-4">
+                    <p className="text-sm leading-relaxed text-dash-ink">{rep.narrative}</p>
                   </div>
                 )}
               </article>

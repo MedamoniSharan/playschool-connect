@@ -1,11 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import {
-  CalendarCheck,
-  Image,
-  IndianRupee,
-  Megaphone,
   School,
-  Shield,
   Users,
 } from "lucide-react";
 import { LottieIcon } from "@/components/LottieIcon";
@@ -36,15 +31,12 @@ export default function LandingPage() {
       {/* Navigation */}
       <nav className="relative z-10 flex items-center justify-between px-6 sm:px-8 py-6 max-w-7xl mx-auto">
         <div className="flex items-center gap-3">
-          <div className="relative h-11 w-11 rounded-xl overflow-hidden border border-white/25 flex items-center justify-center bg-white/12">
-            <LottieIcon className="absolute inset-0 w-full h-full opacity-70" loop />
-            <School className="relative z-10 h-6 w-6 text-white drop-shadow-md" strokeWidth={2} aria-hidden />
-          </div>
+            <img src="/logo.png" alt="Little Berries Logo" className="h-10 w-auto object-contain shrink-0 drop-shadow-lg" />
           <h1
             className="text-2xl sm:text-3xl tracking-tight"
             style={{ fontFamily: "'Instrument Serif', serif", color: "hsl(0, 0%, 100%)" }}
           >
-            Smart Playschool<sup className="text-xs">®</sup>
+            Little Berries<sup className="text-xs">®</sup>
           </h1>
         </div>
 
@@ -92,7 +84,7 @@ export default function LandingPage() {
           className="animate-fade-rise-delay text-base sm:text-lg max-w-2xl mt-8 leading-relaxed"
           style={{ color: "hsl(240,4%,66%)" }}
         >
-          Smart Playschool Management — a seamless platform for managing students, classes, attendance,
+          Little Berries Management — a seamless platform for managing students, classes, attendance,
           galleries, and fees. Built for administrators, teachers, and parents who care.
         </p>
 
@@ -106,41 +98,7 @@ export default function LandingPage() {
         </button>
       </section>
 
-      {/* Features Grid */}
-      <section className="relative z-10 max-w-6xl mx-auto px-6 pb-20 sm:pb-32">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {[
-            { title: "Student Management", desc: "Add, manage, and assign students to classes and sections effortlessly.", Icon: Users },
-            { title: "Attendance Tracking", desc: "Mark and view attendance with real-time insights for every class.", Icon: CalendarCheck },
-            { title: "Photo Gallery", desc: "Upload and share event photos — parents see only their child's media.", Icon: Image },
-            { title: "Fee Management", desc: "Create fee entries, track payments, and send reminders seamlessly.", Icon: IndianRupee },
-            { title: "Role-Based Access", desc: "Admin, teacher, and parent views — each with tailored capabilities.", Icon: Shield },
-            { title: "Broadcast Alerts", desc: "Send announcements to all stakeholders instantly from the dashboard.", Icon: Megaphone },
-          ].map((feature, i) => {
-            const FeatureIcon = feature.Icon;
-            return (
-            <div
-              key={feature.title}
-              className="liquid-glass rounded-2xl p-6 transition-transform hover:scale-[1.02]"
-              style={{ animationDelay: `${0.1 * i}s` }}
-            >
-              <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-white/18 text-white">
-                <FeatureIcon size={20} strokeWidth={2} aria-hidden />
-              </div>
-              <h3
-                className="text-lg font-normal mb-2"
-                style={{ fontFamily: "'Instrument Serif', serif", color: "hsl(0,0%,100%)" }}
-              >
-                {feature.title}
-              </h3>
-              <p className="text-sm leading-relaxed" style={{ color: "hsl(240,4%,66%)" }}>
-                {feature.desc}
-              </p>
-            </div>
-            );
-          })}
-        </div>
-      </section>
+
     </div>
   );
 }

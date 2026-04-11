@@ -1,0 +1,6 @@
+export const API_URLS = {
+  auth: "https://8aey0m4yvf.execute-api.ap-south-2.amazonaws.com/default/auth",
+  users: "https://elgw4pwn4m.execute-api.ap-south-2.amazonaws.com/default/users",
+  curriculum: "https://fy43w82sx3.execute-api.ap-south-2.amazonaws.com/default/circullam",
+  reports: "https://3c4dycar5b.execute-api.ap-south-2.amazonaws.com/default/reports",
+};

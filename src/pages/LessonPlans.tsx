@@ -83,23 +83,23 @@ export default function LessonPlans() {
     return (
       <div
         key={p.id}
-        className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 sm:flex-row sm:items-center sm:justify-between"
+        className="flex flex-col gap-3 rounded-[24px] border border-dash-subtle bg-dash-surface p-4 sm:flex-row sm:items-center sm:justify-between"
       >
         <div className="flex items-start gap-3">
           {s && <PersonAvatar kind="student" id={s.id} gender={s.gender} size="sm" />}
           <div>
             <p className="font-semibold">{s?.name}</p>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-dash-muted">
               {act?.activity.name ?? "Activity"} · {cls?.name}
             </p>
-            <p className="text-xs text-muted-foreground">{p.date}</p>
+            <p className="text-xs text-dash-muted">{p.date}</p>
           </div>
         </div>
         {canManage && (
           <button
             type="button"
             onClick={() => removeLessonPlan(p.id)}
-            className="inline-flex items-center gap-1 self-end rounded-lg px-3 py-1.5 text-sm text-destructive hover:bg-destructive/10 sm:self-auto"
+            className="inline-flex items-center gap-1 self-end rounded-[16px] px-3 py-1.5 text-sm text-destructive hover:bg-destructive/10 sm:self-auto"
           >
             <Trash2 className="h-4 w-4" />
             Remove
@@ -124,8 +124,8 @@ export default function LessonPlans() {
               type="button"
               onClick={() => setView("list")}
               className={cn(
-                "inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium",
-                view === "list" ? "bg-primary text-primary-foreground" : "bg-secondary",
+                "inline-flex items-center gap-2 rounded-[16px] px-3 py-2 text-sm font-medium",
+                view === "list" ? "bg-dash-ink text-white shadow-md shadow-dash-ink/20" : "bg-dash-canvas",
               )}
             >
               <List className="h-4 w-4" />
@@ -135,8 +135,8 @@ export default function LessonPlans() {
               type="button"
               onClick={() => setView("calendar")}
               className={cn(
-                "inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium",
-                view === "calendar" ? "bg-primary text-primary-foreground" : "bg-secondary",
+                "inline-flex items-center gap-2 rounded-[16px] px-3 py-2 text-sm font-medium",
+                view === "calendar" ? "bg-dash-ink text-white shadow-md shadow-dash-ink/20" : "bg-dash-canvas",
               )}
             >
               <CalendarDays className="h-4 w-4" />
@@ -147,7 +147,7 @@ export default function LessonPlans() {
       />
 
       {canManage && rosterForForm.length > 0 && (
-        <div className="mb-8 rounded-xl border border-border bg-card p-4">
+        <div className="mb-8 rounded-[24px] border border-dash-subtle bg-dash-surface p-4">
           <p className="mb-3 text-sm font-medium">Quick assign</p>
           <div className="grid gap-3 md:grid-cols-4">
             <select
@@ -156,7 +156,7 @@ export default function LessonPlans() {
                 setStudentId(e.target.value);
                 setActivityId("");
               }}
-              className="rounded-lg border border-input bg-background px-3 py-2 text-sm"
+              className="rounded-[16px] border border-input bg-background px-3 py-2 text-sm"
             >
               {rosterForForm.map((s) => (
                 <option key={s.id} value={s.id}>
@@ -167,7 +167,7 @@ export default function LessonPlans() {
             <select
               value={activityId}
               onChange={(e) => setActivityId(e.target.value)}
-              className="rounded-lg border border-input bg-background px-3 py-2 text-sm md:col-span-2"
+              className="rounded-[16px] border border-input bg-background px-3 py-2 text-sm md:col-span-2"
             >
               <option value="">Select activity</option>
               {activityOptions.map(({ activity, subjectName }) => (
@@ -180,25 +180,25 @@ export default function LessonPlans() {
               type="button"
               onClick={handleAdd}
               disabled={!activityId || !selectedDate}
-              className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
+              className="inline-flex items-center justify-center gap-2 rounded-[16px] bg-primary px-4 py-2 text-sm font-medium text-dash-lime-deep-foreground disabled:opacity-50"
             >
               <Plus className="h-4 w-4" />
               Add to date
             </button>
           </div>
-          <p className="mt-2 text-xs text-muted-foreground">Uses the highlighted calendar day (below in calendar view).</p>
+          <p className="mt-2 text-xs text-dash-muted">Uses the highlighted calendar day (below in calendar view).</p>
         </div>
       )}
 
       {view === "calendar" && (
         <div className="mb-8 grid gap-6 lg:grid-cols-[auto,1fr]">
-          <Calendar mode="single" selected={selectedDate} onSelect={setSelectedDate} className="rounded-xl border border-border" />
+          <Calendar mode="single" selected={selectedDate} onSelect={setSelectedDate} className="rounded-[24px] border border-dash-subtle" />
           <div className="space-y-3">
             <p className="text-sm font-medium">
               {selectedDate ? format(selectedDate, "PPP") : "Pick a date"}
             </p>
             {plansForCalendar.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No lessons on this day.</p>
+              <p className="text-sm text-dash-muted">No lessons on this day.</p>
             ) : (
               plansForCalendar.map((p) => renderPlanRow(p))
             )}
@@ -209,7 +209,7 @@ export default function LessonPlans() {
       {view === "list" && <div className="space-y-3">{visiblePlans.map((p) => renderPlanRow(p))}</div>}
 
       {visiblePlans.length === 0 && (
-        <div className="py-16 text-center text-muted-foreground">
+        <div className="py-16 text-center text-dash-muted">
           <p>No lesson plans yet.</p>
         </div>
       )}

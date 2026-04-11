@@ -57,11 +57,9 @@ export default function Sidebar() {
       {/* Logo */}
       <div className="p-6 pb-4">
         <div className="flex items-center gap-3">
-          <div className="relative w-11 h-11 rounded-[14px] bg-dash-ink flex items-center justify-center text-dash-lime shadow-md shrink-0">
-            <School className="relative z-10 h-6 w-6" strokeWidth={2} aria-hidden />
-          </div>
+          <img src="/logo.png" alt="Little Berries Logo" className="h-10 w-auto object-contain shrink-0 drop-shadow-sm" />
           <div className="min-w-0 pr-1">
-            <h1 className="font-extrabold text-dash-ink text-[17px] leading-tight truncate tracking-tight">SmartPlay</h1>
+            <h1 className="font-extrabold text-dash-ink text-[17px] leading-tight truncate tracking-tight">Little Berries</h1>
             <p className="text-[9px] uppercase font-bold tracking-[0.15em] text-dash-muted mt-0.5">Connect Hub</p>
           </div>
         </div>

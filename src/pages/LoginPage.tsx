@@ -11,20 +11,30 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    if (login(email, password)) {
+    setIsLoading(true);
+    const success = await login(email, password);
+    setIsLoading(false);
+    if (success) {
       navigate("/dashboard");
     } else {
       setError("Invalid email or password. Try the credentials below.");
     }
   };
 
-  const quickLogin = (email: string, password: string) => {
-    if (login(email, password)) {
+  const quickLogin = async (email: string, password: string) => {
+    setError("");
+    setIsLoading(true);
+    const success = await login(email, password);
+    setIsLoading(false);
+    if (success) {
       navigate("/dashboard");
+    } else {
+      setError("Login failed.");
     }
   };
 
@@ -45,7 +55,7 @@ export default function LoginPage() {
             className="text-5xl mb-4 animate-fade-rise"
             style={{ fontFamily: "'Instrument Serif', serif", color: "hsl(0,0%,100%)" }}
           >
-            Smart Playschool
+            Little Berries
           </h1>
           <p className="text-lg leading-relaxed max-w-md animate-fade-rise-delay" style={{ color: "hsl(240,4%,66%)" }}>
             A complete management system for playschools. Manage students, attendance, galleries, fees — all in one place.
@@ -58,13 +68,7 @@ export default function LoginPage() {
         <div className="w-full max-w-md animate-fade-rise">
           <div className="liquid-glass rounded-2xl p-8">
             <div className="text-center mb-8">
-              <div
-                className="relative w-14 h-14 rounded-2xl mx-auto mb-4 overflow-hidden flex items-center justify-center border border-white/10"
-                style={{ background: "hsla(350,80%,55%,0.25)" }}
-              >
-                <LottieIcon className="absolute inset-0 w-full h-full opacity-40" loop />
-                <School className="relative z-10 h-7 w-7" style={{ color: "hsl(0,0%,100%)" }} strokeWidth={2} aria-hidden />
-              </div>
+              <img src="/logo.png" alt="Little Berries Logo" className="h-16 w-auto object-contain mx-auto mb-4 drop-shadow-md" />
               <h2
                 className="text-2xl"
                 style={{ fontFamily: "'Instrument Serif', serif", color: "hsl(0,0%,100%)" }}
@@ -126,10 +130,11 @@ export default function LoginPage() {
 
               <button
                 type="submit"
-                className="w-full py-3 rounded-xl text-sm font-medium flex items-center justify-center gap-2 transition-opacity hover:opacity-90"
+                disabled={isLoading}
+                className="w-full py-3 rounded-xl text-sm font-medium flex items-center justify-center gap-2 transition-opacity hover:opacity-90 disabled:opacity-50"
                 style={{ background: "hsl(350,80%,55%)", color: "hsl(0,0%,100%)" }}
               >
-                <LogIn size={16} /> Sign In
+                <LogIn size={16} /> {isLoading ? "Signing In..." : "Sign In"}
               </button>
             </form>
 

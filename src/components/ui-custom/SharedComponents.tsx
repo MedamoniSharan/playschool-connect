@@ -19,14 +19,17 @@ interface StatCardProps {
 
 export function StatCard({ title, value, icon, trend, className }: StatCardProps) {
   return (
-    <div className={cn("bg-card rounded-xl p-5 border border-border", className)}>
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-sm text-muted-foreground">{title}</p>
-          <p className="text-2xl font-bold mt-1">{value}</p>
-          {trend && <p className="text-xs text-success mt-1">{trend}</p>}
+    <div className={cn("relative overflow-hidden rounded-[24px] border border-dash-subtle bg-dash-surface p-5 shadow-sm transition-shadow hover:shadow-md", className)}>
+      <div className="flex sm:flex-col items-center sm:items-start justify-between">
+        <div className="hidden sm:flex mb-4 h-11 w-11 items-center justify-center rounded-2xl bg-dash-canvas text-dash-ink">
+          {icon}
         </div>
-        <div className="w-10 h-10 rounded-lg bg-primary-light flex items-center justify-center text-primary">
+        <div className="min-w-0 flex-1">
+          <p className="text-3xl font-extrabold tracking-tight text-dash-ink">{value}</p>
+          <p className="mt-1 text-[11px] font-bold uppercase tracking-wider text-dash-muted">{title}</p>
+          {trend && <p className="text-xs font-bold text-green-600 mt-2">{trend}</p>}
+        </div>
+        <div className="flex sm:hidden h-11 w-11 items-center justify-center rounded-2xl bg-dash-canvas text-dash-ink shrink-0 ml-4">
           {icon}
         </div>
       </div>
@@ -35,15 +38,17 @@ export function StatCard({ title, value, icon, trend, className }: StatCardProps
 }
 
 export function StatusBadge({ status }: { status: string }) {
-  const styles: Record<string, string> = {
-    present: "bg-success/10 text-success",
-    absent: "bg-destructive/10 text-destructive",
-    paid: "bg-success/10 text-success",
-    pending: "bg-accent/10 text-accent",
-    overdue: "bg-destructive/10 text-destructive",
-  };
+  const isGood = ["present", "paid"].includes(status);
+  const isBad = ["absent", "overdue"].includes(status);
+  const isNeutral = ["pending"].includes(status);
+
   return (
-    <span className={cn("px-2.5 py-0.5 rounded-full text-xs font-medium capitalize", styles[status] || "bg-secondary text-secondary-foreground")}>
+    <span className={cn("px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-widest",
+      isGood && "bg-dash-lime/30 text-green-700",
+      isBad && "bg-red-500/10 text-red-600",
+      isNeutral && "bg-dash-ink/5 text-dash-ink",
+      (!isGood && !isBad && !isNeutral) && "bg-dash-canvas text-dash-muted"
+    )}>
       {status}
     </span>
   );
@@ -90,12 +95,12 @@ export function PersonAvatar(props: PersonAvatarProps) {
 
 export function PageHeader({ title, description, action }: { title: string; description?: string; action?: React.ReactNode }) {
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
       <div>
-        <h1 className="text-2xl font-bold">{title}</h1>
-        {description && <p className="text-muted-foreground text-sm mt-1">{description}</p>}
+        <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.2em] text-dash-muted">{description || "Page Section"}</p>
+        <h1 className="text-3xl font-extrabold tracking-tight text-dash-ink md:text-4xl">{title}</h1>
       </div>
-      {action}
+      {action && <div className="mt-2 sm:mt-0">{action}</div>}
     </div>
   );
 }

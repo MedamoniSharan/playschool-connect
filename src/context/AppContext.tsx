@@ -28,11 +28,12 @@ import {
   studentReports as seedStudentReports,
 } from "@/data/mockData";
 import { buildReportFromData } from "@/lib/montessori";
+import { API_URLS } from "@/config/api";
 
 interface AppState {
   currentUser: User | null;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => boolean;
+  login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
   allUsers: User[];
   students: Student[];
@@ -87,18 +88,53 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [lessonPlansState, setLessonPlans] = useState<LessonPlan[]>(seedLessonPlans);
   const [studentReportsState, setStudentReports] = useState<StudentReport[]>(seedStudentReports);
 
-  const login = useCallback((email: string, password: string): boolean => {
-    const user = mockUsers.find((u) => u.email === email && u.password === password);
-    if (user) {
-      setCurrentUser(user);
-      return true;
+  const login = useCallback(async (email: string, password: string): Promise<boolean> => {
+    try {
+      const response = await fetch(API_URLS.auth, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await response.json();
+      if (response.ok && data.user) {
+        setCurrentUser(data.user);
+        return true;
+      }
+      return false;
+    } catch (e) {
+      console.error("Login Error:", e);
+      return false;
     }
-    return false;
   }, []);
 
   const logout = useCallback(() => {
     setCurrentUser(null);
   }, []);
+
+  // Fetch contextual user data on login so synchronous UI filters continue to function natively
+  React.useEffect(() => {
+    if (!currentUser) return;
+    const loadContextData = async () => {
+      try {
+        if (currentUser.role === "teacher") {
+          const res = await fetch(`${API_URLS.users}?action=get_students&teacherId=${currentUser.id}`);
+          if (res.ok) {
+            const data = await res.json();
+            if (data.students) setStudents(data.students);
+          }
+        } else if (currentUser.role === "parent") {
+          const res = await fetch(`${API_URLS.users}?action=get_children&parentId=${currentUser.id}`);
+          if (res.ok) {
+            const data = await res.json();
+            if (data.children) setStudents(data.children);
+          }
+        }
+      } catch (e) {
+        console.error("Failed to load user data from API:", e);
+      }
+    };
+    loadContextData();
+  }, [currentUser]);
 
   const getChildrenForParent = useCallback(
     (parentId: string) => {
@@ -173,7 +209,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     [studentsState, currentUser?.role],
   );
 
-  const addSubject = useCallback((classId: string, name: string) => {
+  const addSubject = useCallback(async (classId: string, name: string) => {
+    try {
+      const res = await fetch(API_URLS.curriculum, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'add_subject', classId, name })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.subject) {
+          setCurriculum((prev) =>
+            prev.map((c) => (c.classId === classId ? { ...c, subjects: [...c.subjects, data.subject] } : c)),
+          );
+          return;
+        }
+      }
+    } catch (e) { console.error("API error", e); }
+    
     const id = `sub-${classId}-${Date.now()}`;
     const subject: Subject = { id, classId, name, activities: [] };
     setCurriculum((prev) =>
@@ -181,7 +234,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     );
   }, []);
 
-  const addActivity = useCallback((classId: string, subjectId: string, name: string, description?: string) => {
+  const addActivity = useCallback(async (classId: string, subjectId: string, name: string, description?: string) => {
+    try {
+      const res = await fetch(API_URLS.curriculum, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'add_activity', classId, subjectId, name, description })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.activity) {
+          setCurriculum((prev) => prev.map((c) => c.classId === classId ? {
+            ...c, subjects: c.subjects.map((s) => s.id === subjectId ? { ...s, activities: [...s.activities, data.activity] } : s)
+          } : c));
+          return;
+        }
+      }
+    } catch (e) { console.error("API error", e); }
+    
     const actId = `act-${subjectId}-${Date.now()}`;
     const newAct: Activity = { id: actId, subjectId, name, description };
     setCurriculum((prev) =>
@@ -207,14 +277,33 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, []);
 
   const generateStudentReport = useCallback(
-    (studentId: string) => {
+    async (studentId: string) => {
       const student = studentsState.find((s) => s.id === studentId);
       if (!student) return;
       const periodLabel = new Intl.DateTimeFormat("en", { month: "long", year: "numeric" }).format(new Date());
       const base = buildReportFromData(student, curriculumState, lessonProgressState, attendanceState, periodLabel);
-      const id = `rep-${Date.now()}`;
-      const generatedAt = new Date().toISOString().split("T")[0];
-      setStudentReports((prev) => [{ ...base, id, generatedAt }, ...prev]);
+      
+      let finalReportId = `rep-${Date.now()}`;
+      let generatedAt = new Date().toISOString().split("T")[0];
+
+      try {
+        const res = await fetch(API_URLS.reports, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ studentId })
+        });
+        if (res.ok) {
+           const data = await res.json();
+           if (data.report) {
+              finalReportId = data.report.id;
+              generatedAt = data.report.generatedAt;
+           }
+        }
+      } catch (e) {
+        console.error("API error reports", e);
+      }
+
+      setStudentReports((prev) => [{ ...base, id: finalReportId, generatedAt }, ...prev]);
       setNotifications((prev) => [
         {
           id: `n-rep-${Date.now()}`,

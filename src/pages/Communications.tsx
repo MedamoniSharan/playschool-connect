@@ -13,7 +13,7 @@ export default function Communications() {
 
   if (!currentUser || (currentUser.role !== "teacher" && currentUser.role !== "admin")) {
     return (
-      <div className="rounded-xl border border-border bg-card p-8 text-center text-muted-foreground">
+      <div className="rounded-[24px] border border-dash-subtle bg-dash-surface p-8 text-center text-dash-muted">
         Class messages are available to teachers and admins.
       </div>
     );
@@ -53,14 +53,14 @@ export default function Communications() {
         }
       />
       <div className="max-w-lg">
-        <div className="space-y-4 rounded-xl border border-border bg-card p-6">
+        <div className="space-y-4 rounded-[24px] border border-dash-subtle bg-dash-surface p-6">
           {currentUser.role === "admin" && (
             <div>
-              <label className="mb-1 block text-xs font-medium text-muted-foreground">Class</label>
+              <label className="mb-1 block text-xs font-medium text-dash-muted">Class</label>
               <select
                 value={adminClassId}
                 onChange={(e) => setAdminClassId(e.target.value)}
-                className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+                className="w-full rounded-[16px] border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
               >
                 {classes.map((c) => (
                   <option key={c.id} value={c.id}>
@@ -71,29 +71,29 @@ export default function Communications() {
             </div>
           )}
           <div>
-            <label className="mb-1 block text-xs font-medium text-muted-foreground">Title</label>
+            <label className="mb-1 block text-xs font-medium text-dash-muted">Title</label>
             <input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="e.g. Field trip next Wednesday"
-              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+              className="w-full rounded-[16px] border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-muted-foreground">Message</label>
+            <label className="mb-1 block text-xs font-medium text-dash-muted">Message</label>
             <textarea
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               placeholder="Short and friendly — parents read this on their phone."
               rows={5}
-              className="w-full resize-none rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+              className="w-full resize-none rounded-[16px] border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
           <button
             type="button"
             onClick={handleSend}
             disabled={!classId}
-            className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-[16px] bg-primary px-4 py-2.5 text-sm font-medium text-dash-lime-deep-foreground hover:opacity-90 disabled:opacity-50"
           >
             <Send className="h-4 w-4" />
             Send to class parents

@@ -1,0 +1,780 @@
+{
+  "users": [
+    {
+      "id": "u1",
+      "name": "Priya Sharma",
+      "role": "admin",
+      "email": "admin@smartplay.com",
+      "password": "admin123"
+    },
+    {
+      "id": "u2",
+      "name": "Rahul Mehta",
+      "role": "teacher",
+      "email": "teacher@smartplay.com",
+      "password": "teacher123",
+      "classId": "c1"
+    },
+    {
+      "id": "u3",
+      "name": "Anita Verma",
+      "role": "teacher",
+      "email": "anita@smartplay.com",
+      "password": "teacher123",
+      "classId": "c2"
+    },
+    {
+      "id": "u4",
+      "name": "Sanjay Gupta",
+      "role": "parent",
+      "email": "parent@smartplay.com",
+      "password": "parent123",
+      "childIds": [
+        "s1",
+        "s3"
+      ]
+    },
+    {
+      "id": "u5",
+      "name": "Meera Patel",
+      "role": "parent",
+      "email": "meera@gmail.com",
+      "password": "parent123",
+      "childIds": [
+        "s2"
+      ]
+    },
+    {
+      "id": "u6",
+      "name": "Vikram Singh",
+      "role": "parent",
+      "email": "vikram@gmail.com",
+      "password": "parent123",
+      "childIds": [
+        "s4"
+      ]
+    }
+  ],
+  "students": [
+    {
+      "id": "s1",
+      "name": "Aarav Gupta",
+      "age": 4,
+      "classId": "c1",
+      "section": "A",
+      "parentId": "u4",
+      "gender": "male",
+      "enrollmentDate": "2024-06-15"
+    },
+    {
+      "id": "s2",
+      "name": "Ishita Patel",
+      "age": 3,
+      "classId": "c1",
+      "section": "A",
+      "parentId": "u5",
+      "gender": "female",
+      "enrollmentDate": "2024-07-01"
+    },
+    {
+      "id": "s3",
+      "name": "Reyansh Gupta",
+      "age": 5,
+      "classId": "c2",
+      "section": "A",
+      "parentId": "u4",
+      "gender": "male",
+      "enrollmentDate": "2024-06-20"
+    },
+    {
+      "id": "s4",
+      "name": "Anaya Singh",
+      "age": 4,
+      "classId": "c2",
+      "section": "B",
+      "parentId": "u6",
+      "gender": "female",
+      "enrollmentDate": "2024-08-10"
+    },
+    {
+      "id": "s5",
+      "name": "Vihaan Kumar",
+      "age": 3,
+      "classId": "c1",
+      "section": "B",
+      "parentId": "u4",
+      "gender": "male",
+      "enrollmentDate": "2024-09-01"
+    },
+    {
+      "id": "s6",
+      "name": "Diya Reddy",
+      "age": 5,
+      "classId": "c2",
+      "section": "B",
+      "parentId": "u5",
+      "gender": "female",
+      "enrollmentDate": "2024-07-15"
+    }
+  ],
+  "classes": [
+    {
+      "id": "c1",
+      "name": "Little Stars",
+      "teacherId": "u2",
+      "sections": [
+        "A",
+        "B"
+      ],
+      "studentIds": [
+        "s1",
+        "s2",
+        "s5"
+      ]
+    },
+    {
+      "id": "c2",
+      "name": "Bright Sparks",
+      "teacherId": "u3",
+      "sections": [
+        "A",
+        "B"
+      ],
+      "studentIds": [
+        "s3",
+        "s4",
+        "s6"
+      ]
+    }
+  ],
+  "curriculum": [
+    {
+      "classId": "c1",
+      "subjects": [
+        {
+          "id": "sub-c1-pl",
+          "classId": "c1",
+          "name": "Practical Life",
+          "activities": [
+            {
+              "id": "act-c1-pl-1",
+              "subjectId": "sub-c1-pl",
+              "name": "Pouring water",
+              "description": "Transfer between glass pitchers"
+            },
+            {
+              "id": "act-c1-pl-2",
+              "subjectId": "sub-c1-pl",
+              "name": "Spooning",
+              "description": "Dry transfer with a spoon"
+            },
+            {
+              "id": "act-c1-pl-3",
+              "subjectId": "sub-c1-pl",
+              "name": "Button frame",
+              "description": "Dressing independence"
+            }
+          ]
+        },
+        {
+          "id": "sub-c1-se",
+          "classId": "c1",
+          "name": "Sensorial",
+          "activities": [
+            {
+              "id": "act-c1-se-1",
+              "subjectId": "sub-c1-se",
+              "name": "Pink tower",
+              "description": "Cubes 1–10"
+            },
+            {
+              "id": "act-c1-se-2",
+              "subjectId": "sub-c1-se",
+              "name": "Brown stairs",
+              "description": "Broad stair"
+            },
+            {
+              "id": "act-c1-se-3",
+              "subjectId": "sub-c1-se",
+              "name": "Color box II",
+              "description": "Secondary colors"
+            }
+          ]
+        },
+        {
+          "id": "sub-c1-la",
+          "classId": "c1",
+          "name": "Language",
+          "activities": [
+            {
+              "id": "act-c1-la-1",
+              "subjectId": "sub-c1-la",
+              "name": "Sandpaper letters",
+              "description": "Letter sounds"
+            },
+            {
+              "id": "act-c1-la-2",
+              "subjectId": "sub-c1-la",
+              "name": "Movable alphabet",
+              "description": "Word building"
+            }
+          ]
+        },
+        {
+          "id": "sub-c1-ma",
+          "classId": "c1",
+          "name": "Mathematics",
+          "activities": [
+            {
+              "id": "act-c1-ma-1",
+              "subjectId": "sub-c1-ma",
+              "name": "Number rods",
+              "description": "Quantity 1–10"
+            },
+            {
+              "id": "act-c1-ma-2",
+              "subjectId": "sub-c1-ma",
+              "name": "Spindle boxes",
+              "description": "Zero & numerals"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "classId": "c2",
+      "subjects": [
+        {
+          "id": "sub-c2-pl",
+          "classId": "c2",
+          "name": "Practical Life",
+          "activities": [
+            {
+              "id": "act-c2-pl-1",
+              "subjectId": "sub-c2-pl",
+              "name": "Polishing",
+              "description": "Silver / brass"
+            },
+            {
+              "id": "act-c2-pl-2",
+              "subjectId": "sub-c2-pl",
+              "name": "Food prep",
+              "description": "Chopping & spreading"
+            }
+          ]
+        },
+        {
+          "id": "sub-c2-se",
+          "classId": "c2",
+          "name": "Sensorial",
+          "activities": [
+            {
+              "id": "act-c2-se-1",
+              "subjectId": "sub-c2-se",
+              "name": "Geometric solids",
+              "description": "Names & sorting"
+            },
+            {
+              "id": "act-c2-se-2",
+              "subjectId": "sub-c2-se",
+              "name": "Sound cylinders",
+              "description": "Auditory discrimination"
+            }
+          ]
+        },
+        {
+          "id": "sub-c2-la",
+          "classId": "c2",
+          "name": "Language",
+          "activities": [
+            {
+              "id": "act-c2-la-1",
+              "subjectId": "sub-c2-la",
+              "name": "Phonetic objects",
+              "description": "Beginning sounds"
+            },
+            {
+              "id": "act-c2-la-2",
+              "subjectId": "sub-c2-la",
+              "name": "Sentence analysis",
+              "description": "Simple grammar"
+            }
+          ]
+        },
+        {
+          "id": "sub-c2-ma",
+          "classId": "c2",
+          "name": "Mathematics",
+          "activities": [
+            {
+              "id": "act-c2-ma-1",
+              "subjectId": "sub-c2-ma",
+              "name": "Golden beads",
+              "description": "Decimal system intro"
+            },
+            {
+              "id": "act-c2-ma-2",
+              "subjectId": "sub-c2-ma",
+              "name": "Teen board",
+              "description": "11–19"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "lessonProgress": [
+    {
+      "id": "prog-s1-act-c1-pl-1",
+      "studentId": "s1",
+      "activityId": "act-c1-pl-1",
+      "stage": "mastered",
+      "updatedAt": "2026-04-09"
+    },
+    {
+      "id": "prog-s1-act-c1-pl-2",
+      "studentId": "s1",
+      "activityId": "act-c1-pl-2",
+      "stage": "mastered",
+      "updatedAt": "2026-04-09"
+    },
+    {
+      "id": "prog-s1-act-c1-pl-3",
+      "studentId": "s1",
+      "activityId": "act-c1-pl-3",
+      "stage": "mastered",
+      "updatedAt": "2026-04-09"
+    },
+    {
+      "id": "prog-s1-act-c1-se-1",
+      "studentId": "s1",
+      "activityId": "act-c1-se-1",
+      "stage": "mastered",
+      "updatedAt": "2026-04-09"
+    },
+    {
+      "id": "prog-s1-act-c1-se-2",
+      "studentId": "s1",
+      "activityId": "act-c1-se-2",
+      "stage": "mastered",
+      "updatedAt": "2026-04-09"
+    },
+    {
+      "id": "prog-s1-act-c1-se-3",
+      "studentId": "s1",
+      "activityId": "act-c1-se-3",
+      "stage": "mastered",
+      "updatedAt": "2026-04-09"
+    },
+    {
+      "id": "prog-s1-act-c1-la-1",
+      "studentId": "s1",
+      "activityId": "act-c1-la-1",
+      "stage": "mastered",
+      "updatedAt": "2026-04-09"
+    },
+    {
+      "id": "prog-s1-act-c1-la-2",
+      "studentId": "s1",
+      "activityId": "act-c1-la-2",
+      "stage": "mastered",
+      "updatedAt": "2026-04-09"
+    },
+    {
+      "id": "prog-s1-act-c1-ma-1",
+      "studentId": "s1",
+      "activityId": "act-c1-ma-1",
+      "stage": "mastered",
+      "updatedAt": "2026-04-09"
+    },
+    {
+      "id": "prog-s1-act-c1-ma-2",
+      "studentId": "s1",
+      "activityId": "act-c1-ma-2",
+      "stage": "mastered",
+      "updatedAt": "2026-04-09"
+    },
+    {
+      "id": "prog-s2-act-c1-pl-1",
+      "studentId": "s2",
+      "activityId": "act-c1-pl-1",
+      "stage": "mastered",
+      "updatedAt": "2026-04-09"
+    },
+    {
+      "id": "prog-s2-act-c1-pl-2",
+      "studentId": "s2",
+      "activityId": "act-c1-pl-2",
+      "stage": "mastered",
+      "updatedAt": "2026-04-09"
+    },
+    {
+      "id": "prog-s2-act-c1-pl-3",
+      "studentId": "s2",
+      "activityId": "act-c1-pl-3",
+      "stage": "mastered",
+      "updatedAt": "2026-04-09"
+    },
+    {
+      "id": "prog-s2-act-c1-se-1",
+      "studentId": "s2",
+      "activityId": "act-c1-se-1",
+      "stage": "mastered",
+      "updatedAt": "2026-04-09"
+    },
+    {
+      "id": "prog-s2-act-c1-se-2",
+      "studentId": "s2",
+      "activityId": "act-c1-se-2",
+      "stage": "mastered",
+      "updatedAt": "2026-04-09"
+    },
+    {
+      "id": "prog-s2-act-c1-se-3",
+      "studentId": "s2",
+      "activityId": "act-c1-se-3",
+      "stage": "mastered",
+      "updatedAt": "2026-04-09"
+    },
+    {
+      "id": "prog-s2-act-c1-la-1",
+      "studentId": "s2",
+      "activityId": "act-c1-la-1",
+      "stage": "mastered",
+      "updatedAt": "2026-04-09"
+    },
+    {
+      "id": "prog-s2-act-c1-la-2",
+      "studentId": "s2",
+      "activityId": "act-c1-la-2",
+      "stage": "mastered",
+      "updatedAt": "2026-04-09"
+    },
+    {
+      "id": "prog-s2-act-c1-ma-1",
+      "studentId": "s2",
+      "activityId": "act-c1-ma-1",
+      "stage": "mastered",
+      "updatedAt": "2026-04-09"
+    },
+    {
+      "id": "prog-s2-act-c1-ma-2",
+      "studentId": "s2",
+      "activityId": "act-c1-ma-2",
+      "stage": "mastered",
+      "updatedAt": "2026-04-09"
+    },
+    {
+      "id": "prog-s3-act-c2-pl-1",
+      "studentId": "s3",
+      "activityId": "act-c2-pl-1",
+      "stage": "mastered",
+      "updatedAt": "2026-04-09"
+    },
+    {
+      "id": "prog-s3-act-c2-pl-2",
+      "studentId": "s3",
+      "activityId": "act-c2-pl-2",
+      "stage": "mastered",
+      "updatedAt": "2026-04-09"
+    },
+    {
+      "id": "prog-s3-act-c2-se-1",
+      "studentId": "s3",
+      "activityId": "act-c2-se-1",
+      "stage": "mastered",
+      "updatedAt": "2026-04-09"
+    },
+    {
+      "id": "prog-s3-act-c2-se-2",
+      "studentId": "s3",
+      "activityId": "act-c2-se-2",
+      "stage": "mastered",
+      "updatedAt": "2026-04-09"
+    },
+    {
+      "id": "prog-s3-act-c2-la-1",
+      "studentId": "s3",
+      "activityId": "act-c2-la-1",
+      "stage": "mastered",
+      "updatedAt": "2026-04-09"
+    },
+    {
+      "id": "prog-s3-act-c2-la-2",
+      "studentId": "s3",
+      "activityId": "act-c2-la-2",
+      "stage": "mastered",
+      "updatedAt": "2026-04-09"
+    },
+    {
+      "id": "prog-s3-act-c2-ma-1",
+      "studentId": "s3",
+      "activityId": "act-c2-ma-1",
+      "stage": "mastered",
+      "updatedAt": "2026-04-09"
+    },
+    {
+      "id": "prog-s3-act-c2-ma-2",
+      "studentId": "s3",
+      "activityId": "act-c2-ma-2",
+      "stage": "mastered",
+      "updatedAt": "2026-04-09"
+    },
+    {
+      "id": "prog-s4-act-c2-pl-1",
+      "studentId": "s4",
+      "activityId": "act-c2-pl-1",
+      "stage": "mastered",
+      "updatedAt": "2026-04-09"
+    },
+    {
+      "id": "prog-s4-act-c2-pl-2",
+      "studentId": "s4",
+      "activityId": "act-c2-pl-2",
+      "stage": "mastered",
+      "updatedAt": "2026-04-09"
+    },
+    {
+      "id": "prog-s4-act-c2-se-1",
+      "studentId": "s4",
+      "activityId": "act-c2-se-1",
+      "stage": "mastered",
+      "updatedAt": "2026-04-09"
+    },
+    {
+      "id": "prog-s4-act-c2-se-2",
+      "studentId": "s4",
+      "activityId": "act-c2-se-2",
+      "stage": "mastered",
+      "updatedAt": "2026-04-09"
+    },
+    {
+      "id": "prog-s4-act-c2-la-1",
+      "studentId": "s4",
+      "activityId": "act-c2-la-1",
+      "stage": "mastered",
+      "updatedAt": "2026-04-09"
+    },
+    {
+      "id": "prog-s4-act-c2-la-2",
+      "studentId": "s4",
+      "activityId": "act-c2-la-2",
+      "stage": "mastered",
+      "updatedAt": "2026-04-09"
+    },
+    {
+      "id": "prog-s4-act-c2-ma-1",
+      "studentId": "s4",
+      "activityId": "act-c2-ma-1",
+      "stage": "mastered",
+      "updatedAt": "2026-04-09"
+    },
+    {
+      "id": "prog-s4-act-c2-ma-2",
+      "studentId": "s4",
+      "activityId": "act-c2-ma-2",
+      "stage": "mastered",
+      "updatedAt": "2026-04-09"
+    },
+    {
+      "id": "prog-s5-act-c1-pl-1",
+      "studentId": "s5",
+      "activityId": "act-c1-pl-1",
+      "stage": "mastered",
+      "updatedAt": "2026-04-09"
+    },
+    {
+      "id": "prog-s5-act-c1-pl-2",
+      "studentId": "s5",
+      "activityId": "act-c1-pl-2",
+      "stage": "mastered",
+      "updatedAt": "2026-04-09"
+    },
+    {
+      "id": "prog-s5-act-c1-pl-3",
+      "studentId": "s5",
+      "activityId": "act-c1-pl-3",
+      "stage": "mastered",
+      "updatedAt": "2026-04-09"
+    },
+    {
+      "id": "prog-s5-act-c1-se-1",
+      "studentId": "s5",
+      "activityId": "act-c1-se-1",
+      "stage": "mastered",
+      "updatedAt": "2026-04-09"
+    },
+    {
+      "id": "prog-s5-act-c1-se-2",
+      "studentId": "s5",
+      "activityId": "act-c1-se-2",
+      "stage": "mastered",
+      "updatedAt": "2026-04-09"
+    },
+    {
+      "id": "prog-s5-act-c1-se-3",
+      "studentId": "s5",
+      "activityId": "act-c1-se-3",
+      "stage": "mastered",
+      "updatedAt": "2026-04-09"
+    },
+    {
+      "id": "prog-s5-act-c1-la-1",
+      "studentId": "s5",
+      "activityId": "act-c1-la-1",
+      "stage": "mastered",
+      "updatedAt": "2026-04-09"
+    },
+    {
+      "id": "prog-s5-act-c1-la-2",
+      "studentId": "s5",
+      "activityId": "act-c1-la-2",
+      "stage": "mastered",
+      "updatedAt": "2026-04-09"
+    },
+    {
+      "id": "prog-s5-act-c1-ma-1",
+      "studentId": "s5",
+      "activityId": "act-c1-ma-1",
+      "stage": "mastered",
+      "updatedAt": "2026-04-09"
+    },
+    {
+      "id": "prog-s5-act-c1-ma-2",
+      "studentId": "s5",
+      "activityId": "act-c1-ma-2",
+      "stage": "mastered",
+      "updatedAt": "2026-04-09"
+    },
+    {
+      "id": "prog-s6-act-c2-pl-1",
+      "studentId": "s6",
+      "activityId": "act-c2-pl-1",
+      "stage": "mastered",
+      "updatedAt": "2026-04-09"
+    },
+    {
+      "id": "prog-s6-act-c2-pl-2",
+      "studentId": "s6",
+      "activityId": "act-c2-pl-2",
+      "stage": "mastered",
+      "updatedAt": "2026-04-09"
+    },
+    {
+      "id": "prog-s6-act-c2-se-1",
+      "studentId": "s6",
+      "activityId": "act-c2-se-1",
+      "stage": "mastered",
+      "updatedAt": "2026-04-09"
+    },
+    {
+      "id": "prog-s6-act-c2-se-2",
+      "studentId": "s6",
+      "activityId": "act-c2-se-2",
+      "stage": "mastered",
+      "updatedAt": "2026-04-09"
+    },
+    {
+      "id": "prog-s6-act-c2-la-1",
+      "studentId": "s6",
+      "activityId": "act-c2-la-1",
+      "stage": "mastered",
+      "updatedAt": "2026-04-09"
+    },
+    {
+      "id": "prog-s6-act-c2-la-2",
+      "studentId": "s6",
+      "activityId": "act-c2-la-2",
+      "stage": "mastered",
+      "updatedAt": "2026-04-09"
+    },
+    {
+      "id": "prog-s6-act-c2-ma-1",
+      "studentId": "s6",
+      "activityId": "act-c2-ma-1",
+      "stage": "mastered",
+      "updatedAt": "2026-04-09"
+    },
+    {
+      "id": "prog-s6-act-c2-ma-2",
+      "studentId": "s6",
+      "activityId": "act-c2-ma-2",
+      "stage": "mastered",
+      "updatedAt": "2026-04-09"
+    }
+  ],
+  "lessonPlans": [
+    {
+      "id": "plan-1",
+      "classId": "c1",
+      "studentId": "s1",
+      "activityId": "act-c1-pl-1",
+      "date": "2026-04-11",
+      "notes": "Focus on steady pour height"
+    },
+    {
+      "id": "plan-2",
+      "classId": "c1",
+      "studentId": "s2",
+      "activityId": "act-c1-la-1",
+      "date": "2026-04-11",
+      "notes": "Letters s, a, t"
+    },
+    {
+      "id": "plan-3",
+      "classId": "c1",
+      "studentId": "s5",
+      "activityId": "act-c1-se-1",
+      "date": "2026-04-11",
+      "notes": "Rebuild with control"
+    },
+    {
+      "id": "plan-4",
+      "classId": "c2",
+      "studentId": "s3",
+      "activityId": "act-c2-ma-1",
+      "date": "2026-04-11",
+      "notes": "Quantity to symbol"
+    },
+    {
+      "id": "plan-5",
+      "classId": "c2",
+      "studentId": "s4",
+      "activityId": "act-c2-la-1",
+      "date": "2026-04-12",
+      "notes": "Object–sound match"
+    },
+    {
+      "id": "plan-6",
+      "classId": "c2",
+      "studentId": "s6",
+      "activityId": "act-c2-pl-2",
+      "date": "2026-04-10",
+      "notes": "Cucumber slicing"
+    }
+  ],
+  "studentReports": [
+    {
+      "id": "rep-1",
+      "studentId": "s1",
+      "generatedAt": "2026-04-01",
+      "periodLabel": "March 2026",
+      "lessonsPresented": 8,
+      "lessonsPracticed": 5,
+      "lessonsMastered": 2,
+      "attendanceRate": 92,
+      "narrative": "Aarav shows strong focus in practical life. Language work is progressing steadily; continue movable alphabet extensions at home."
+    },
+    {
+      "id": "rep-2",
+      "studentId": "s3",
+      "generatedAt": "2026-04-01",
+      "periodLabel": "March 2026",
+      "lessonsPresented": 10,
+      "lessonsPracticed": 6,
+      "lessonsMastered": 3,
+      "attendanceRate": 88,
+      "narrative": "Reyansh is engaged with math materials and enjoys peer collaboration during group presentations."
+    }
+  ]
+}

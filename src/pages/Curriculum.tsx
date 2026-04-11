@@ -14,7 +14,7 @@ export default function Curriculum() {
 
   if (!currentUser || (currentUser.role !== "admin" && currentUser.role !== "teacher")) {
     return (
-      <div className="rounded-xl border border-border bg-card p-8 text-center text-muted-foreground">
+      <div className="rounded-[24px] border border-dash-subtle bg-dash-surface p-8 text-center text-dash-muted">
         You don&apos;t have access to curriculum management.
       </div>
     );

@@ -9,19 +9,19 @@ function MediaModal({ item, onClose }: { item: MediaItem; onClose: () => void })
   const tagged = allStudents.filter((s) => item.studentIds.includes(s.id));
   return (
     <div className="fixed inset-0 bg-foreground/40 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-card rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-dash-surface rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden" onClick={(e) => e.stopPropagation()}>
         <div className="relative">
           <img src={item.url} alt={item.title} className="w-full h-64 sm:h-80 object-cover" />
-          <button onClick={onClose} className="absolute top-3 right-3 p-1.5 bg-card/80 rounded-full backdrop-blur-sm">
+          <button onClick={onClose} className="absolute top-3 right-3 p-1.5 bg-dash-surface/80 rounded-full backdrop-blur-sm">
             <X size={18} />
           </button>
         </div>
         <div className="p-5">
           <h3 className="font-semibold text-lg">{item.title}</h3>
-          <p className="text-sm text-muted-foreground mt-1">{item.event} · {item.date}</p>
+          <p className="text-sm text-dash-muted mt-1">{item.event} · {item.date}</p>
           <div className="flex flex-wrap gap-2 mt-3">
             {tagged.map((s) => (
-              <span key={s.id} className="px-2.5 py-1 bg-primary-light text-primary text-xs rounded-full font-medium">{s.name}</span>
+              <span key={s.id} className="px-2.5 py-1 bg-primary-light text-dash-lime-deep text-xs rounded-full font-medium">{s.name}</span>
             ))}
           </div>
         </div>
@@ -59,33 +59,33 @@ function UploadModal({ onClose, onSave }: { onClose: () => void; onSave: (item: 
 
   return (
     <div className="fixed inset-0 bg-foreground/40 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-card rounded-2xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-dash-surface rounded-2xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
         <div className="flex justify-between items-center mb-4">
           <h3 className="font-semibold text-lg">Upload Media</h3>
           <button onClick={onClose}><X size={18} /></button>
         </div>
         <div className="space-y-4">
-          <div className="border-2 border-dashed border-border rounded-xl p-8 text-center flex flex-col items-center gap-2">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-secondary text-primary">
+          <div className="border-2 border-dashed border-dash-subtle rounded-[24px] p-8 text-center flex flex-col items-center gap-2">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-dash-canvas text-dash-lime-deep">
               <ImagePlus size={22} strokeWidth={2} aria-hidden />
             </div>
-            <p className="text-muted-foreground text-sm">Click to upload or drag & drop</p>
-            <p className="text-xs text-muted-foreground">PNG, JPG up to 10MB</p>
+            <p className="text-dash-muted text-sm">Click to upload or drag & drop</p>
+            <p className="text-xs text-dash-muted">PNG, JPG up to 10MB</p>
           </div>
-          <input placeholder="Title" value={title} onChange={(e) => setTitle(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm outline-none focus:ring-2 focus:ring-ring" />
-          <input placeholder="Event name" value={event} onChange={(e) => setEvent(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm outline-none focus:ring-2 focus:ring-ring" />
+          <input placeholder="Title" value={title} onChange={(e) => setTitle(e.target.value)} className="w-full px-3 py-2 rounded-[16px] border border-input bg-background text-sm outline-none focus:ring-2 focus:ring-ring" />
+          <input placeholder="Event name" value={event} onChange={(e) => setEvent(e.target.value)} className="w-full px-3 py-2 rounded-[16px] border border-input bg-background text-sm outline-none focus:ring-2 focus:ring-ring" />
           <div>
             <p className="text-sm font-medium mb-2">Tag Students</p>
             <div className="flex flex-wrap gap-2">
               {myStudents.map((s) => (
                 <button key={s.id} onClick={() => toggleStudent(s.id)}
                   className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                    selectedStudents.includes(s.id) ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"
+                    selectedStudents.includes(s.id) ? "bg-dash-ink text-white shadow-md shadow-dash-ink/20" : "bg-dash-canvas text-dash-ink"
                   }`}>{s.name}</button>
               ))}
             </div>
           </div>
-          <button onClick={handleSave} className="w-full py-2.5 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:opacity-90 transition-opacity">
+          <button onClick={handleSave} className="w-full py-2.5 bg-dash-ink text-white shadow-md shadow-dash-ink/20 rounded-[16px] text-sm font-medium hover:opacity-90 transition-opacity">
             Save
           </button>
         </div>
@@ -132,13 +132,13 @@ export default function Gallery() {
           <div className="flex gap-2">
             {events.length > 0 && (
               <select value={filterEvent} onChange={(e) => setFilterEvent(e.target.value)}
-                className="px-3 py-2 rounded-lg border border-input bg-background text-sm outline-none">
+                className="px-3 py-2 rounded-[16px] border border-input bg-background text-sm outline-none">
                 <option value="">All Events</option>
                 {events.map((e) => <option key={e} value={e}>{e}</option>)}
               </select>
             )}
             {currentUser.role === "teacher" && (
-              <button onClick={() => setShowUpload(true)} className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:opacity-90">
+              <button onClick={() => setShowUpload(true)} className="flex items-center gap-2 px-4 py-2 bg-dash-ink text-white shadow-md shadow-dash-ink/20 rounded-[16px] text-sm font-medium hover:opacity-90">
                 <Plus size={16} /> Upload
               </button>
             )}
@@ -148,26 +148,26 @@ export default function Gallery() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {filteredGallery.map((item) => (
-          <div key={item.id} className="bg-card rounded-xl border border-border overflow-hidden group cursor-pointer" onClick={() => setSelectedItem(item)}>
+          <div key={item.id} className="bg-dash-surface rounded-[24px] border border-dash-subtle overflow-hidden group cursor-pointer" onClick={() => setSelectedItem(item)}>
             <div className="relative">
               <img src={item.url} alt={item.title} className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300" />
               {currentUser.role === "admin" && (
                 <button onClick={(e) => { e.stopPropagation(); handleDelete(item.id); }}
-                  className="absolute top-2 right-2 p-1.5 bg-card/80 rounded-full opacity-0 group-hover:opacity-100 transition-opacity text-destructive">
+                  className="absolute top-2 right-2 p-1.5 bg-dash-surface/80 rounded-full opacity-0 group-hover:opacity-100 transition-opacity text-destructive">
                   <Trash2 size={14} />
                 </button>
               )}
             </div>
             <div className="p-3">
               <p className="text-sm font-medium">{item.title}</p>
-              <p className="text-xs text-muted-foreground">{item.event} · {item.date}</p>
+              <p className="text-xs text-dash-muted">{item.event} · {item.date}</p>
             </div>
           </div>
         ))}
       </div>
 
       {filteredGallery.length === 0 && (
-        <div className="text-center py-16 text-muted-foreground">
+        <div className="text-center py-16 text-dash-muted">
           <p>No media found</p>
         </div>
       )}
