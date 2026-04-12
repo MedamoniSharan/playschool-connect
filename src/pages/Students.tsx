@@ -31,8 +31,30 @@ function AddStudentModal({ onClose, onSave, classes, setClasses }: { onClose: ()
   const [saving, setSaving] = useState(false);
   const [newClassName, setNewClassName] = useState("");
 
-  const handleAddClass = () => {
+  const handleAddClass = async () => {
     if (!newClassName.trim()) return;
+    try {
+      const res = await fetch(API_URLS.users, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "add_class", name: newClassName.trim() }),
+      });
+      if (res.ok) {
+        const raw = await res.json();
+        const data = typeof raw.body === "string" ? JSON.parse(raw.body) : raw;
+        if (data.class) {
+          setClasses((prev) => [...prev, data.class as ClassRoom]);
+          setClassId(data.class.id);
+          setNewClassName("");
+          toast.success("Class created successfully");
+          return;
+        }
+      }
+    } catch (e) {
+      console.error("API error adding class:", e);
+    }
+
+    // Local fallback
     const newClass: ClassRoom = {
       id: `c${Date.now()}`,
       name: newClassName.trim(),
@@ -232,8 +254,29 @@ function ManageClassesModal({
   // If teacher, only show their class
   const visibleClasses = teacherClassId ? classes.filter((c) => c.id === teacherClassId) : classes;
 
-  const addClass = () => {
+  const addClass = async () => {
     if (!newClassName.trim()) return;
+    try {
+      const res = await fetch(API_URLS.users, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "add_class", name: newClassName.trim() }),
+      });
+      if (res.ok) {
+        const raw = await res.json();
+        const data = typeof raw.body === "string" ? JSON.parse(raw.body) : raw;
+        if (data.class) {
+          setClasses((prev) => [...prev, data.class as ClassRoom]);
+          setNewClassName("");
+          toast.success("Class created successfully");
+          return;
+        }
+      }
+    } catch (e) {
+      console.error("API error adding class:", e);
+    }
+
+    // Local fallback
     const newClass: ClassRoom = {
       id: `c${Date.now()}`,
       name: newClassName.trim(),
@@ -245,7 +288,21 @@ function ManageClassesModal({
     setNewClassName("");
   };
 
-  const deleteClass = (id: string) => {
+  const deleteClass = async (id: string) => {
+    try {
+      const res = await fetch(API_URLS.users, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "delete_class", id }),
+      });
+      if (res.ok) {
+        setClasses((prev) => prev.filter((c) => c.id !== id));
+        toast.success("Class deleted");
+        return;
+      }
+    } catch (e) {
+      console.error("API error deleting class:", e);
+    }
     setClasses((prev) => prev.filter((c) => c.id !== id));
   };
 

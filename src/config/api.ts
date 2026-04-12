@@ -5,4 +5,5 @@ export const API_URLS = {
   reports: "https://3c4dycar5b.execute-api.ap-south-2.amazonaws.com/default/reports",
   seed: "https://7s0thxe2lj.execute-api.ap-south-2.amazonaws.com/default/seed_data",
   gallery: "https://hme2pc3rq5.execute-api.ap-south-2.amazonaws.com/default/gallery",
+  lessons: "", // TODO: Add actual Lesson Plans API URL here
 };

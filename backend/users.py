@@ -211,6 +211,79 @@ def add_student_handler(event, context):
         return {"statusCode": 500, "headers": CORS_HEADERS, "body": json.dumps({"error": str(e)})}
 
 
+def get_classes_handler(event, context):
+    try:
+        response = classes_table.scan()
+        classes = response.get('Items', [])
+        return {
+            "statusCode": 200,
+            "headers": CORS_HEADERS,
+            "body": json.dumps({"classes": classes})
+        }
+    except Exception as e:
+        return {"statusCode": 500, "headers": CORS_HEADERS, "body": json.dumps({"error": str(e)})}
+
+
+def add_class_handler(event, context):
+    try:
+        body = json.loads(event.get("body", "{}"))
+        class_id = body.get("id")
+        name = body.get("name")
+        teacher_id = body.get("teacherId", "")
+        student_ids = body.get("studentIds", [])
+
+        if not name:
+            return {"statusCode": 400, "headers": CORS_HEADERS, "body": json.dumps({"error": "Class name is required"})}
+
+        if not class_id:
+            import time
+            class_id = f"c{int(time.time() * 1000)}"
+
+        cls = {
+            "id": class_id,
+            "name": name,
+            "teacherId": teacher_id,
+            "studentIds": student_ids,
+            "sections": [] # Preserving schema but empty as per user rule to remove sections
+        }
+        classes_table.put_item(Item=cls)
+
+        return {
+            "statusCode": 201,
+            "headers": CORS_HEADERS,
+            "body": json.dumps({"message": "Class saved successfully", "class": cls})
+        }
+    except Exception as e:
+        return {"statusCode": 500, "headers": CORS_HEADERS, "body": json.dumps({"error": str(e)})}
+
+
+def delete_class_handler(event, context):
+    try:
+        query_params = event.get("queryStringParameters") or {}
+        class_id = query_params.get("id")
+
+        if not class_id:
+            # Try body if not in query params
+            try:
+                body = json.loads(event.get("body", "{}"))
+                class_id = body.get("id")
+            except:
+                pass
+
+        if not class_id:
+            return {"statusCode": 400, "headers": CORS_HEADERS, "body": json.dumps({"error": "id is required"})}
+
+        classes_table.delete_item(Key={"id": class_id})
+
+        return {
+            "statusCode": 200,
+            "headers": CORS_HEADERS,
+            "body": json.dumps({"message": "Class deleted successfully"})
+        }
+    except Exception as e:
+        return {"statusCode": 500, "headers": CORS_HEADERS, "body": json.dumps({"error": str(e)})}
+
+
 def lambda_handler(event, context):
     # Handle CORS preflight
     if event.get("httpMethod") == "OPTIONS":
@@ -232,5 +305,11 @@ def lambda_handler(event, context):
         return get_students_for_teacher_handler(event, context)
     elif action == 'add_student':
         return add_student_handler(event, context)
+    elif action == 'get_classes':
+        return get_classes_handler(event, context)
+    elif action == 'add_class':
+        return add_class_handler(event, context)
+    elif action == 'delete_class':
+        return delete_class_handler(event, context)
     else:
         return {"statusCode": 400, "headers": CORS_HEADERS, "body": json.dumps({"error": "Missing or unknown query parameter 'action'"})}

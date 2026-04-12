@@ -155,6 +155,30 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           }
         } catch (e) { console.error('Failed to load gallery:', e); }
 
+        // Load classes from API
+        try {
+          const classesRes = await fetch(API_URLS.users, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'get_classes' })
+          });
+          if (classesRes.ok) {
+            const cData = parseApiResponse(await classesRes.json());
+            if (cData.classes) setClasses(cData.classes as ClassRoom[]);
+          }
+        } catch (e) { console.error('Failed to load classes:', e); }
+
+        // Load Lesson Plans and Progress
+        if (API_URLS.lessons) {
+          try {
+            const lessonsRes = await fetch(`${API_URLS.lessons}?action=get_plans`);
+            if (lessonsRes.ok) {
+              const lData = parseApiResponse(await lessonsRes.json());
+              if (lData.plans) setLessonPlans(lData.plans as LessonPlan[]);
+            }
+          } catch (e) { console.error('Failed to load lesson plans:', e); }
+        }
+
       } catch (e) {
         console.error("Failed to load user data from API:", e);
       }
@@ -200,6 +224,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     (studentId: string, activityId: string, stage: LessonProgress["stage"]) => {
       const student = studentsState.find((s) => s.id === studentId);
       const today = new Date().toISOString().split("T")[0];
+      
+      // Local update first
       setLessonProgress((prev) => {
         const idx = prev.findIndex((p) => p.studentId === studentId && p.activityId === activityId);
         const row: LessonProgress = {
@@ -216,6 +242,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
         return [...prev, row];
       });
+
+      // Persistent update
+      if (API_URLS.lessons) {
+        fetch(API_URLS.lessons, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'update_stage', studentId, activityId, stage })
+        }).catch(e => console.error('Failed to sync stage update:', e));
+      }
+
       if (currentUser?.role === "teacher" && student) {
         setNotifications((prev) => [
           {
@@ -298,13 +334,43 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     );
   }, []);
 
-  const addLessonPlan = useCallback((plan: Omit<LessonPlan, "id">) => {
+  const addLessonPlan = useCallback(async (plan: Omit<LessonPlan, "id">) => {
     const id = `plan-${Date.now()}`;
+    // Local Update
     setLessonPlans((prev) => [...prev, { ...plan, id }]);
+    
+    // Persistent Update
+    if (API_URLS.lessons) {
+      try {
+        const res = await fetch(API_URLS.lessons, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'add_plan', ...plan })
+        });
+        if (res.ok) {
+           const data = parseApiResponse(await res.json());
+           if (data.plan) {
+             setLessonPlans((prev) => prev.map(p => p.id === id ? data.plan as LessonPlan : p));
+           }
+        }
+      } catch (e) { console.error('Failed to sync lesson plan addition:', e); }
+    }
   }, []);
 
-  const removeLessonPlan = useCallback((id: string) => {
+  const removeLessonPlan = useCallback(async (id: string) => {
+    // Local Update
     setLessonPlans((prev) => prev.filter((p) => p.id !== id));
+    
+    // Persistent Update
+    if (API_URLS.lessons) {
+      try {
+        await fetch(API_URLS.lessons, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'remove_plan', id })
+        });
+      } catch (e) { console.error('Failed to sync lesson plan removal:', e); }
+    }
   }, []);
 
   const generateStudentReport = useCallback(

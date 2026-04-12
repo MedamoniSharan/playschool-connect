@@ -93,6 +93,18 @@ def remove_lesson_plan_handler(event, context):
     except Exception as e:
          return {"statusCode": 500, "body": json.dumps({"error": str(e)})}
 
+def get_all_plans_handler(event, context):
+    try:
+        response = lessons_table.scan()
+        plans = response.get('Items', [])
+        return {
+            "statusCode": 200,
+            "headers": {"Access-Control-Allow-Origin": "*"},
+            "body": json.dumps({"plans": plans})
+        }
+    except Exception as e:
+        return {"statusCode": 500, "body": json.dumps({"error": str(e)})}
+
 def lambda_handler(event, context):
     action = event.get('queryStringParameters', {}).get('action') if event.get('queryStringParameters') else None
 
@@ -109,5 +121,7 @@ def lambda_handler(event, context):
         return add_lesson_plan_handler(event, context)
     elif action == 'remove_plan':
         return remove_lesson_plan_handler(event, context)
+    elif action == 'get_plans':
+        return get_all_plans_handler(event, context)
     else:
-        return {"statusCode": 400, "body": json.dumps({"error": "Missing or unknown action"})}
+        return {"statusCode": 400, "body": json.dumps({"error": f"Missing or unknown action: {action}"})}
