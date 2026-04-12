@@ -3,11 +3,11 @@ import { useApp } from "@/context/AppContext";
 import { PageHeader, StatusBadge, PersonAvatar } from "@/components/ui-custom/SharedComponents";
 import { cn } from "@/lib/utils";
 import { Plus, X, LayoutGrid, List } from "lucide-react";
-import { students as allStudents } from "@/data/mockData";
 import { FeeEntry } from "@/types";
 
 function CreateFeeModal({ onClose, onSave }: { onClose: () => void; onSave: (entry: FeeEntry) => void }) {
-  const [studentId, setStudentId] = useState(allStudents[0].id);
+  const { students: allStudents } = useApp();
+  const [studentId, setStudentId] = useState(allStudents[0]?.id ?? "");
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
 
@@ -50,7 +50,7 @@ function CreateFeeModal({ onClose, onSave }: { onClose: () => void; onSave: (ent
 }
 
 export default function Fees() {
-  const { currentUser, fees, setFees, getChildrenForParent } = useApp();
+  const { currentUser, fees, setFees, getChildrenForParent, students: allStudents } = useApp();
   const [showCreate, setShowCreate] = useState(false);
   const [viewMode, setViewMode] = useState<"table" | "grid">("table");
 

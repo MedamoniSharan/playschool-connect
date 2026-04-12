@@ -5,10 +5,9 @@ import { PageHeader, PersonAvatar, StatusBadge } from "@/components/ui-custom/Sh
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { LayoutGrid, List } from "lucide-react";
-import { students as allStudents } from "@/data/mockData";
 
 export default function Attendance() {
-  const { currentUser, attendance, setAttendance, getChildrenForParent, getStudentsForTeacher, classes } = useApp();
+  const { currentUser, attendance, setAttendance, getChildrenForParent, getStudentsForTeacher, classes, students: allStudents } = useApp();
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date("2026-04-11"));
   
   if (!currentUser) return null;

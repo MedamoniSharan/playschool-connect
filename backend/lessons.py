@@ -12,30 +12,8 @@ logger.setLevel(logging.INFO)
 region = os.environ.get('AWS_REGION', 'ap-south-2')
 dynamodb = boto3.resource('dynamodb', region_name=region)
 
-def ensure_table_exists(table_name, key_schema, attribute_definitions):
-    try:
-        table = dynamodb.create_table(
-            TableName=table_name,
-            KeySchema=key_schema,
-            AttributeDefinitions=attribute_definitions,
-            BillingMode='PAY_PER_REQUEST'
-        )
-        logger.info(f"Creating table {table_name}. Waiting for it to become ACTIVE...")
-        table.meta.client.get_waiter('table_exists').wait(TableName=table_name)
-        logger.info(f"Table {table_name} is now available.")
-    except ClientError as e:
-        if e.response['Error']['Code'] == 'ResourceInUseException':
-            logger.info(f"Table {table_name} already exists.")
-        else:
-            raise e
-    return dynamodb.Table(table_name)
-
-# Initialize table globally (if not exists)
-lessons_table = ensure_table_exists(
-    'Playschool_Lessons',
-    [{'AttributeName': 'id', 'KeyType': 'HASH'}],
-    [{'AttributeName': 'id', 'AttributeType': 'S'}]
-)
+# Initialize table — direct reference for fast cold start
+lessons_table = dynamodb.Table('Playschool_Lessons')
 
 def update_lesson_stage_handler(event, context):
     try:

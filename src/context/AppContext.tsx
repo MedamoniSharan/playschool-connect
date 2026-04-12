@@ -14,21 +14,16 @@ import type {
   Activity,
   Subject,
 } from "@/types";
-import {
-  users as mockUsers,
-  students as mockStudents,
-  gallery,
-  attendance,
-  fees,
-  notifications,
-  classes as mockClasses,
-  curriculum as seedCurriculum,
-  lessonProgress as seedLessonProgress,
-  lessonPlans as seedLessonPlans,
-  studentReports as seedStudentReports,
-} from "@/data/mockData";
 import { buildReportFromData } from "@/lib/montessori";
 import { API_URLS } from "@/config/api";
+
+/** Parse API Gateway response — handles both direct JSON and wrapped {statusCode, body} formats */
+function parseApiResponse(raw: Record<string, unknown>): Record<string, unknown> {
+  if (typeof raw.body === 'string') {
+    try { return JSON.parse(raw.body); } catch { return raw; }
+  }
+  return raw;
+}
 
 interface AppState {
   currentUser: User | null;
@@ -65,6 +60,8 @@ interface AppState {
   addLessonPlan: (plan: Omit<LessonPlan, "id">) => void;
   removeLessonPlan: (id: string) => void;
   generateStudentReport: (studentId: string) => void;
+  uploadGalleryImage: (file: File, title: string, event: string, studentIds: string[]) => Promise<MediaItem | null>;
+  addSectionToClass: (classId: string, section: string) => void;
 }
 
 const AppContext = createContext<AppState | null>(null);
@@ -76,17 +73,25 @@ export const useApp = () => {
 };
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [studentsState, setStudents] = useState<Student[]>(mockStudents);
-  const [classesState, setClasses] = useState<ClassRoom[]>(mockClasses);
-  const [galleryState, setGallery] = useState<MediaItem[]>(gallery);
-  const [attendanceState, setAttendance] = useState<AttendanceRecord[]>(attendance);
-  const [feesState, setFees] = useState<FeeEntry[]>(fees);
-  const [notificationsState, setNotifications] = useState<Notification[]>(notifications);
-  const [curriculumState, setCurriculum] = useState<ClassCurriculum[]>(seedCurriculum);
-  const [lessonProgressState, setLessonProgress] = useState<LessonProgress[]>(seedLessonProgress);
-  const [lessonPlansState, setLessonPlans] = useState<LessonPlan[]>(seedLessonPlans);
-  const [studentReportsState, setStudentReports] = useState<StudentReport[]>(seedStudentReports);
+  const [currentUser, setCurrentUser] = useState<User | null>(() => {
+    try {
+      const stored = localStorage.getItem('playschool_user');
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [allUsersState, setAllUsers] = useState<User[]>([]);
+  const [studentsState, setStudents] = useState<Student[]>([]);
+  const [classesState, setClasses] = useState<ClassRoom[]>([]);
+  const [galleryState, setGallery] = useState<MediaItem[]>([]);
+  const [attendanceState, setAttendance] = useState<AttendanceRecord[]>([]);
+  const [feesState, setFees] = useState<FeeEntry[]>([]);
+  const [notificationsState, setNotifications] = useState<Notification[]>([]);
+  const [curriculumState, setCurriculum] = useState<ClassCurriculum[]>([]);
+  const [lessonProgressState, setLessonProgress] = useState<LessonProgress[]>([]);
+  const [lessonPlansState, setLessonPlans] = useState<LessonPlan[]>([]);
+  const [studentReportsState, setStudentReports] = useState<StudentReport[]>([]);
 
   const login = useCallback(async (email: string, password: string): Promise<boolean> => {
     try {
@@ -97,6 +102,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
       const data = await response.json();
       if (response.ok && data.user) {
+        localStorage.setItem('playschool_user', JSON.stringify(data.user));
         setCurrentUser(data.user);
         return true;
       }
@@ -108,27 +114,47 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, []);
 
   const logout = useCallback(() => {
+    localStorage.removeItem('playschool_user');
     setCurrentUser(null);
   }, []);
 
-  // Fetch contextual user data on login so synchronous UI filters continue to function natively
+  // Fetch all data from APIs when user is logged in
   React.useEffect(() => {
     if (!currentUser) return;
     const loadContextData = async () => {
       try {
+        // Load students based on role
         if (currentUser.role === "teacher") {
           const res = await fetch(`${API_URLS.users}?action=get_students&teacherId=${currentUser.id}`);
           if (res.ok) {
-            const data = await res.json();
-            if (data.students) setStudents(data.students);
+            const data = parseApiResponse(await res.json());
+            if (data.students) setStudents(data.students as Student[]);
+            if (data.classId) setClasses([{ id: data.classId as string, name: '', teacherId: currentUser.id, sections: [], studentIds: (data.students as Student[])?.map((s: Student) => s.id) || [] }]);
           }
         } else if (currentUser.role === "parent") {
           const res = await fetch(`${API_URLS.users}?action=get_children&parentId=${currentUser.id}`);
           if (res.ok) {
-            const data = await res.json();
-            if (data.children) setStudents(data.children);
+            const data = parseApiResponse(await res.json());
+            if (data.children) setStudents(data.children as Student[]);
+          }
+        } else if (currentUser.role === "admin") {
+          // Admin: try to get all students via seed/users endpoint
+          const res = await fetch(`${API_URLS.users}?action=get_all_students`);
+          if (res.ok) {
+            const data = parseApiResponse(await res.json());
+            if (data.students) setStudents(data.students as Student[]);
           }
         }
+
+        // Load gallery from API
+        try {
+          const galleryRes = await fetch(`${API_URLS.gallery}?action=list_media`);
+          if (galleryRes.ok) {
+            const gData = parseApiResponse(await galleryRes.json());
+            if (gData.media) setGallery(gData.media as MediaItem[]);
+          }
+        } catch (e) { console.error('Failed to load gallery:', e); }
+
       } catch (e) {
         console.error("Failed to load user data from API:", e);
       }
@@ -138,11 +164,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const getChildrenForParent = useCallback(
     (parentId: string) => {
-      const user = mockUsers.find((u) => u.id === parentId);
-      if (!user?.childIds) return [];
-      return studentsState.filter((s) => user.childIds!.includes(s.id));
+      if (!currentUser || currentUser.id !== parentId) return [];
+      const childIds = currentUser.childIds;
+      if (!childIds) return [];
+      return studentsState.filter((s) => childIds.includes(s.id));
     },
-    [studentsState],
+    [studentsState, currentUser],
   );
 
   const getStudentsForTeacher = useCallback(
@@ -210,6 +237,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   );
 
   const addSubject = useCallback(async (classId: string, name: string) => {
+    let subject: Subject | null = null;
     try {
       const res = await fetch(API_URLS.curriculum, {
         method: 'POST',
@@ -217,24 +245,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         body: JSON.stringify({ action: 'add_subject', classId, name })
       });
       if (res.ok) {
-        const data = await res.json();
-        if (data.subject) {
-          setCurriculum((prev) =>
-            prev.map((c) => (c.classId === classId ? { ...c, subjects: [...c.subjects, data.subject] } : c)),
-          );
-          return;
-        }
+        const data = parseApiResponse(await res.json());
+        if (data.subject) subject = data.subject as Subject;
       }
     } catch (e) { console.error("API error", e); }
-    
-    const id = `sub-${classId}-${Date.now()}`;
-    const subject: Subject = { id, classId, name, activities: [] };
-    setCurriculum((prev) =>
-      prev.map((c) => (c.classId === classId ? { ...c, subjects: [...c.subjects, subject] } : c)),
-    );
+
+    // Fallback: create locally if API didn't return one
+    if (!subject) {
+      const id = `sub-${classId}-${Date.now()}`;
+      subject = { id, classId, name, activities: [] };
+    }
+
+    setCurriculum((prev) => {
+      const exists = prev.some((c) => c.classId === classId);
+      if (exists) {
+        return prev.map((c) => c.classId === classId ? { ...c, subjects: [...c.subjects, subject!] } : c);
+      }
+      // Create new curriculum entry for this class
+      return [...prev, { classId, subjects: [subject!] }];
+    });
   }, []);
 
   const addActivity = useCallback(async (classId: string, subjectId: string, name: string, description?: string) => {
+    let newAct: Activity | null = null;
     try {
       const res = await fetch(API_URLS.curriculum, {
         method: 'POST',
@@ -242,25 +275,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         body: JSON.stringify({ action: 'add_activity', classId, subjectId, name, description })
       });
       if (res.ok) {
-        const data = await res.json();
-        if (data.activity) {
-          setCurriculum((prev) => prev.map((c) => c.classId === classId ? {
-            ...c, subjects: c.subjects.map((s) => s.id === subjectId ? { ...s, activities: [...s.activities, data.activity] } : s)
-          } : c));
-          return;
-        }
+        const data = parseApiResponse(await res.json());
+        if (data.activity) newAct = data.activity as Activity;
       }
     } catch (e) { console.error("API error", e); }
-    
-    const actId = `act-${subjectId}-${Date.now()}`;
-    const newAct: Activity = { id: actId, subjectId, name, description };
+
+    if (!newAct) {
+      const actId = `act-${subjectId}-${Date.now()}`;
+      newAct = { id: actId, subjectId, name, description };
+    }
+
     setCurriculum((prev) =>
       prev.map((c) => {
         if (c.classId !== classId) return c;
         return {
           ...c,
           subjects: c.subjects.map((s) =>
-            s.id === subjectId ? { ...s, activities: [...s.activities, newAct] } : s,
+            s.id === subjectId ? { ...s, activities: [...s.activities, newAct!] } : s,
           ),
         };
       }),
@@ -321,13 +352,99 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     [studentsState, curriculumState, lessonProgressState, attendanceState],
   );
 
+  const uploadGalleryImage = useCallback(
+    async (file: File, title: string, event: string, studentIds: string[]): Promise<MediaItem | null> => {
+      if (!currentUser) return null;
+      try {
+        // Step 1: Get presigned URL from Lambda
+        const presignRes = await fetch(`${API_URLS.gallery}?action=get_presigned_url`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fileName: file.name, contentType: file.type }),
+        });
+        if (!presignRes.ok) throw new Error('Failed to get upload URL');
+        const presignRaw = await presignRes.json();
+        // API Gateway may return body as a JSON string — parse it if needed
+        const presignData = typeof presignRaw.body === 'string' ? JSON.parse(presignRaw.body) : presignRaw;
+        const { uploadUrl, s3Url } = presignData;
+
+        if (!uploadUrl) throw new Error('No upload URL received from server');
+
+        // Step 2: PUT file directly to S3 via presigned URL
+        const uploadRes = await fetch(uploadUrl, {
+          method: 'PUT',
+          body: file,
+        });
+        if (!uploadRes.ok) throw new Error('Failed to upload file to S3');
+
+        // Step 3: Save metadata to DynamoDB via Lambda
+        const mediaId = `m${Date.now()}`;
+        const today = new Date().toISOString().split('T')[0];
+        const mediaItem: MediaItem = {
+          id: mediaId,
+          url: s3Url,
+          type: 'photo',
+          title,
+          event,
+          date: today,
+          studentIds,
+          uploadedBy: currentUser.id,
+        };
+
+        const saveRes = await fetch(`${API_URLS.gallery}?action=save_media`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(mediaItem),
+        });
+        const saveRaw = await saveRes.json();
+        const saveData = typeof saveRaw.body === 'string' ? JSON.parse(saveRaw.body) : saveRaw;
+        if (saveRaw.statusCode && saveRaw.statusCode !== 200) throw new Error('Failed to save media metadata');
+
+        // Update local state
+        setGallery((prev) => [mediaItem, ...prev]);
+
+        // Notify parents
+        setNotifications((prev) => [
+          {
+            id: `n-gal-${Date.now()}`,
+            type: 'gallery',
+            title: 'New photos uploaded',
+            message: `New photos from "${event}" have been added to the gallery.`,
+            date: today,
+            read: false,
+            targetRoles: ['parent'],
+            scope: 'global',
+          },
+          ...prev,
+        ]);
+
+        return mediaItem;
+      } catch (e) {
+        console.error('Gallery upload error:', e);
+        return null;
+      }
+    },
+    [currentUser],
+  );
+
+  const addSectionToClass = useCallback((classId: string, section: string) => {
+    if (!section.trim()) return;
+    setClasses((prev) =>
+      prev.map((c) => {
+        if (c.id !== classId) return c;
+        if (c.sections.includes(section.trim())) return c; // avoid duplicates
+        return { ...c, sections: [...c.sections, section.trim()] };
+      }),
+    );
+  }, []);
+
   const value = useMemo(
     () => ({
       currentUser,
       isAuthenticated: !!currentUser,
       login,
       logout,
-      allUsers: mockUsers,
+      allUsers: allUsersState,
       students: studentsState,
       setStudents,
       classes: classesState,
@@ -357,6 +474,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       addLessonPlan,
       removeLessonPlan,
       generateStudentReport,
+      uploadGalleryImage,
+      addSectionToClass,
     }),
     [
       currentUser,
@@ -381,6 +500,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       addLessonPlan,
       removeLessonPlan,
       generateStudentReport,
+      uploadGalleryImage,
+      addSectionToClass,
     ],
   );
 

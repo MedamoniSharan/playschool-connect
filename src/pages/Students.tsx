@@ -6,7 +6,6 @@ import type { LucideIcon } from "lucide-react";
 import {
   Plus,
   X,
-  Edit2,
   Trash2,
   Search,
   Users,
@@ -18,31 +17,84 @@ import {
   List,
 } from "lucide-react";
 import { Student, ClassRoom } from "@/types";
+import { API_URLS } from "@/config/api";
+import { toast } from "sonner";
 
-function AddStudentModal({ onClose, onSave, classes }: { onClose: () => void; onSave: (s: Student) => void; classes: ClassRoom[] }) {
+function AddStudentModal({ onClose, onSave, classes, setClasses }: { onClose: () => void; onSave: (s: Student) => void; classes: ClassRoom[]; setClasses: React.Dispatch<React.SetStateAction<ClassRoom[]>> }) {
   const [name, setName] = useState("");
   const [age, setAge] = useState("");
   const [classId, setClassId] = useState(classes[0]?.id || "");
-  const [section, setSection] = useState("A");
   const [gender, setGender] = useState<"male" | "female">("male");
+  const [parentName, setParentName] = useState("");
+  const [parentEmail, setParentEmail] = useState("");
+  const [parentPassword, setParentPassword] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [newClassName, setNewClassName] = useState("");
 
-  const handleSave = () => {
-    if (!name || !age || !classId) return;
+  const handleAddClass = () => {
+    if (!newClassName.trim()) return;
+    const newClass: ClassRoom = {
+      id: `c${Date.now()}`,
+      name: newClassName.trim(),
+      teacherId: "",
+      sections: [],
+      studentIds: [],
+    };
+    setClasses((prev) => [...prev, newClass]);
+    setClassId(newClass.id);
+    setNewClassName("");
+  };
+
+  const handleSave = async () => {
+    if (!name || !age || !classId || !parentEmail || !parentPassword) return;
+    setSaving(true);
+
+    try {
+      const res = await fetch(`${API_URLS.users}?action=add_student`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          studentName: name,
+          age: Number(age),
+          classId,
+          gender,
+          parentName: parentName || `Parent of ${name}`,
+          parentEmail,
+          parentPassword,
+          enrollmentDate: new Date().toISOString().split("T")[0],
+        }),
+      });
+
+      const raw = await res.json();
+      const data = typeof raw.body === "string" ? JSON.parse(raw.body) : raw;
+
+      if (data.student) {
+        onSave(data.student as Student);
+        toast.success("Student added successfully", {
+          description: `Parent login: ${parentEmail}`,
+        });
+        onClose();
+        return;
+      }
+    } catch (e) {
+      console.error("API error adding student:", e);
+    }
+
+    // Fallback: create locally if API failed
     const newStudent: Student = {
       id: `s${Date.now()}`,
       name,
       age: Number(age),
       classId,
-      section,
+      section: "",
       parentId: "",
       gender,
       enrollmentDate: new Date().toISOString().split("T")[0],
     };
     onSave(newStudent);
     onClose();
+    setSaving(false);
   };
-
-  const selectedClass = classes.find((c) => c.id === classId);
 
   const inputClass =
     "w-full rounded-2xl border border-dash-subtle bg-dash-surface px-4 py-3 text-sm font-medium text-dash-ink outline-none transition-shadow placeholder:text-dash-muted focus:ring-2 focus:ring-dash-ink/10";
@@ -53,7 +105,7 @@ function AddStudentModal({ onClose, onSave, classes }: { onClose: () => void; on
       onClick={onClose}
     >
       <div
-        className="dashboard-modern w-full max-w-md animate-fade-in rounded-[28px] border border-dash-subtle bg-dash-surface p-6 shadow-2xl shadow-dash-ink/10"
+        className="dashboard-modern w-full max-w-md max-h-[90vh] overflow-y-auto animate-fade-in rounded-[28px] border border-dash-subtle bg-dash-surface p-6 shadow-2xl shadow-dash-ink/10"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-6 flex items-center justify-between">
@@ -68,6 +120,7 @@ function AddStudentModal({ onClose, onSave, classes }: { onClose: () => void; on
           </button>
         </div>
         <div className="space-y-4">
+          <p className="text-xs font-bold uppercase tracking-[0.15em] text-dash-muted">Student Details</p>
           <div>
             <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-dash-muted">Full name</label>
             <input placeholder="e.g. Aarav Kumar" value={name} onChange={(e) => setName(e.target.value)} className={inputClass} />
@@ -97,9 +150,9 @@ function AddStudentModal({ onClose, onSave, classes }: { onClose: () => void; on
               </select>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-dash-muted">Class</label>
+          <div>
+            <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-dash-muted">Class *</label>
+            {classes.length > 0 ? (
               <select value={classId} onChange={(e) => setClassId(e.target.value)} className={cn(inputClass, "appearance-none")}>
                 {classes.map((c) => (
                   <option key={c.id} value={c.id}>
@@ -107,24 +160,55 @@ function AddStudentModal({ onClose, onSave, classes }: { onClose: () => void; on
                   </option>
                 ))}
               </select>
-            </div>
-            <div>
-              <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-dash-muted">Section</label>
-              <select value={section} onChange={(e) => setSection(e.target.value)} className={cn(inputClass, "appearance-none")}>
-                {(selectedClass?.sections || ["A", "B"]).map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
+            ) : (
+              <p className="text-xs text-amber-600 font-medium py-1">No classes yet — create one below</p>
+            )}
+            <div className="flex gap-2 mt-2">
+              <input
+                placeholder="New class name (e.g. Nursery)"
+                value={newClassName}
+                onChange={(e) => setNewClassName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddClass(); } }}
+                className="flex-1 rounded-xl border border-dash-subtle bg-dash-canvas px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-dash-ink/10"
+              />
+              <button
+                type="button"
+                onClick={handleAddClass}
+                className="rounded-xl bg-dash-lime px-4 py-2 text-xs font-bold text-dash-ink ring-1 ring-black/5"
+              >
+                <Plus size={14} strokeWidth={2.5} />
+              </button>
             </div>
           </div>
+
+          {/* Divider */}
+          <div className="relative py-1">
+            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-dash-subtle" /></div>
+            <div className="relative flex justify-center">
+              <span className="bg-dash-surface px-3 text-xs font-bold uppercase tracking-[0.15em] text-dash-muted">Parent Login</span>
+            </div>
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-dash-muted">Parent Name</label>
+            <input placeholder="e.g. Priya Kumar" value={parentName} onChange={(e) => setParentName(e.target.value)} className={inputClass} />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-dash-muted">Parent Email *</label>
+            <input type="email" placeholder="parent@email.com" value={parentEmail} onChange={(e) => setParentEmail(e.target.value)} className={inputClass} />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-dash-muted">Password *</label>
+            <input type="password" placeholder="Create a password" value={parentPassword} onChange={(e) => setParentPassword(e.target.value)} className={inputClass} />
+          </div>
+
           <button
             type="button"
             onClick={handleSave}
-            className="w-full rounded-full bg-dash-ink py-3.5 text-sm font-bold text-white shadow-lg shadow-dash-ink/20 transition-transform hover:scale-[1.01] active:scale-[0.99]"
+            disabled={saving || !name || !age || !classId || !parentEmail || !parentPassword}
+            className="w-full rounded-full bg-dash-ink py-3.5 text-sm font-bold text-white shadow-lg shadow-dash-ink/20 transition-transform hover:scale-[1.01] active:scale-[0.99] disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            Add student
+            {saving ? "Creating..." : "Add student"}
           </button>
         </div>
       </div>
@@ -136,35 +220,37 @@ function ManageClassesModal({
   onClose,
   classes,
   setClasses,
+  teacherClassId,
 }: {
   onClose: () => void;
   classes: ClassRoom[];
   setClasses: React.Dispatch<React.SetStateAction<ClassRoom[]>>;
+  teacherClassId?: string;
 }) {
   const [newClassName, setNewClassName] = useState("");
-  const [newSections, setNewSections] = useState("A, B");
+
+  // If teacher, only show their class
+  const visibleClasses = teacherClassId ? classes.filter((c) => c.id === teacherClassId) : classes;
 
   const addClass = () => {
-    if (!newClassName) return;
-    const sections = newSections
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
+    if (!newClassName.trim()) return;
     const newClass: ClassRoom = {
       id: `c${Date.now()}`,
-      name: newClassName,
+      name: newClassName.trim(),
       teacherId: "",
-      sections,
+      sections: [],
       studentIds: [],
     };
     setClasses((prev) => [...prev, newClass]);
     setNewClassName("");
-    setNewSections("A, B");
   };
 
   const deleteClass = (id: string) => {
     setClasses((prev) => prev.filter((c) => c.id !== id));
   };
+
+  const studentCount = (cls: ClassRoom) =>
+    cls.studentIds.length;
 
   const inputClass =
     "w-full rounded-2xl border border-dash-subtle bg-dash-surface px-4 py-3 text-sm font-medium text-dash-ink outline-none placeholder:text-dash-muted focus:ring-2 focus:ring-dash-ink/10";
@@ -176,67 +262,80 @@ function ManageClassesModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-6 flex items-center justify-between">
-          <h3 className="text-lg font-bold text-dash-ink">Classes & sections</h3>
+          <div>
+            <h3 className="text-lg font-bold text-dash-ink">Manage Classes</h3>
+            <p className="text-xs font-medium text-dash-muted mt-0.5">{visibleClasses.length} class{visibleClasses.length !== 1 ? "es" : ""}</p>
+          </div>
           <button
             type="button"
             onClick={onClose}
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-dash-canvas text-dash-muted hover:text-dash-ink"
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-dash-canvas text-dash-muted hover:text-dash-ink transition-colors"
             aria-label="Close"
           >
             <X size={18} strokeWidth={2} />
           </button>
         </div>
 
+        {/* Existing classes */}
         <div className="mb-6 space-y-3">
-          {classes.map((cls) => (
+          {visibleClasses.length === 0 && (
+            <div className="flex flex-col items-center justify-center rounded-[20px] border border-dashed border-dash-ring bg-dash-canvas/50 px-6 py-10 text-center">
+              <Layers className="h-8 w-8 text-dash-muted mb-3" strokeWidth={1.5} />
+              <p className="text-sm font-semibold text-dash-ink">No classes yet</p>
+              <p className="text-xs text-dash-muted mt-1">Create your first class below to get started.</p>
+            </div>
+          )}
+          {visibleClasses.map((cls) => (
             <div
               key={cls.id}
-              className="flex items-center justify-between gap-3 rounded-[22px] border border-dash-subtle bg-dash-canvas/60 p-4"
+              className="group flex items-center justify-between rounded-[20px] border border-dash-subtle bg-dash-canvas/60 px-5 py-4 transition-all hover:border-dash-ring hover:shadow-sm"
             >
-              <div className="min-w-0">
-                <p className="font-semibold text-dash-ink">{cls.name}</p>
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  {cls.sections.map((s) => (
-                    <span key={s} className="rounded-full bg-dash-surface px-2.5 py-0.5 text-xs font-bold text-dash-ink ring-1 ring-dash-subtle">
-                      {s}
-                    </span>
-                  ))}
+              <div className="flex items-center gap-3.5">
+                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-dash-lime/60 text-dash-ink ring-1 ring-black/5">
+                  <GraduationCap size={18} strokeWidth={1.75} />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-dash-ink">{cls.name}</p>
+                  <p className="text-xs font-medium text-dash-muted">{studentCount(cls)} student{studentCount(cls) !== 1 ? "s" : ""}</p>
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={() => deleteClass(cls.id)}
-                className="shrink-0 rounded-full p-2 text-red-600 transition-colors hover:bg-red-500/10"
-                aria-label={`Delete ${cls.name}`}
-              >
-                <Trash2 size={16} strokeWidth={2} />
-              </button>
+              {!teacherClassId && (
+                <button
+                  type="button"
+                  onClick={() => deleteClass(cls.id)}
+                  className="shrink-0 flex h-9 w-9 items-center justify-center rounded-full text-red-500 opacity-0 transition-all hover:bg-red-500/10 group-hover:opacity-100"
+                  aria-label={`Delete ${cls.name}`}
+                >
+                  <Trash2 size={16} strokeWidth={2} />
+                </button>
+              )}
             </div>
           ))}
         </div>
 
-        <div className="space-y-3 border-t border-dash-subtle pt-6">
-          <p className="text-sm font-bold text-dash-ink">Add class</p>
-          <input
-            placeholder="Class name (e.g. Sunshine)"
-            value={newClassName}
-            onChange={(e) => setNewClassName(e.target.value)}
-            className={inputClass}
-          />
-          <input
-            placeholder="Sections: A, B, C"
-            value={newSections}
-            onChange={(e) => setNewSections(e.target.value)}
-            className={inputClass}
-          />
-          <button
-            type="button"
-            onClick={addClass}
-            className="w-full rounded-full bg-dash-lime py-3 text-sm font-bold text-dash-ink ring-1 ring-black/5 transition-transform hover:scale-[1.01]"
-          >
-            Add class
-          </button>
-        </div>
+        {/* Add new class */}
+        {!teacherClassId && (
+          <div className="space-y-3 border-t border-dash-subtle pt-5">
+            <p className="text-xs font-bold uppercase tracking-[0.15em] text-dash-muted">Add new class</p>
+            <div className="flex gap-2">
+              <input
+                placeholder="Class name (e.g. Nursery, LKG, UKG)"
+                value={newClassName}
+                onChange={(e) => setNewClassName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addClass(); } }}
+                className={cn(inputClass, "flex-1")}
+              />
+              <button
+                type="button"
+                onClick={addClass}
+                disabled={!newClassName.trim()}
+                className="shrink-0 rounded-2xl bg-dash-ink px-5 py-3 text-sm font-bold text-white shadow-lg shadow-dash-ink/15 transition-transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <Plus size={18} strokeWidth={2.5} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -286,7 +385,7 @@ export default function Students() {
   const [showManageClasses, setShowManageClasses] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterClass, setFilterClass] = useState("");
-  const [filterSection, setFilterSection] = useState("");
+
   const [viewMode, setViewMode] = useState<"table" | "grid">("table");
 
   const isAdmin = currentUser?.role === "admin";
@@ -307,9 +406,7 @@ export default function Students() {
   if (filterClass) {
     displayStudents = displayStudents.filter((s) => s.classId === filterClass);
   }
-  if (filterSection) {
-    displayStudents = displayStudents.filter((s) => s.section === filterSection);
-  }
+
 
   const handleAddStudent = (student: Student) => {
     setStudents((prev) => [...prev, student]);
@@ -323,8 +420,8 @@ export default function Students() {
     setClasses((prev) => prev.map((c) => ({ ...c, studentIds: c.studentIds.filter((sid) => sid !== id) })));
   };
 
-  const handleReassign = (studentId: string, newClassId: string, newSection: string) => {
-    setStudents((prev) => prev.map((s) => (s.id === studentId ? { ...s, classId: newClassId, section: newSection } : s)));
+  const handleReassign = (studentId: string, newClassId: string) => {
+    setStudents((prev) => prev.map((s) => (s.id === studentId ? { ...s, classId: newClassId } : s)));
     setClasses((prev) =>
       prev.map((c) => {
         const withoutStudent = c.studentIds.filter((sid) => sid !== studentId);
@@ -334,7 +431,6 @@ export default function Students() {
     );
   };
 
-  const allSections = [...new Set(classes.flatMap((c) => c.sections))];
   const boys = displayStudents.filter((s) => s.gender === "male").length;
   const girls = displayStudents.filter((s) => s.gender === "female").length;
 
@@ -353,7 +449,7 @@ export default function Students() {
             <GraduationCap className="inline-block h-8 w-8 align-middle text-dash-ink md:h-9 md:w-9" strokeWidth={1.75} />
           </h1>
           <p className="mt-2 max-w-xl text-sm text-dash-muted md:text-base">
-            {isAdmin ? "Manage enrollment, classes, and sections from one place." : "Manage your class students and placements."}
+            {isAdmin ? "Manage enrollment and classes from one place." : "Manage your class students."}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -367,14 +463,14 @@ export default function Students() {
               Add student
             </button>
           )}
-          {isAdmin && (
+          {(isAdmin || isTeacher) && (
             <button
               type="button"
               onClick={() => setShowManageClasses(true)}
               className="inline-flex items-center gap-2 rounded-full border border-dash-subtle bg-dash-surface px-4 py-2.5 text-sm font-bold text-dash-ink transition-colors hover:bg-white"
             >
-              <Edit2 className="h-4 w-4" strokeWidth={2} />
-              Classes & sections
+              <Layers className="h-4 w-4" strokeWidth={2} />
+              Manage Classes
             </button>
           )}
         </div>
@@ -405,17 +501,6 @@ export default function Students() {
             <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-dash-muted" strokeWidth={2} />
           </div>
         )}
-        <div className="relative flex min-w-[140px] flex-1 sm:flex-initial sm:max-w-[180px]">
-          <select value={filterSection} onChange={(e) => setFilterSection(e.target.value)} className={cn(selectShell, "w-full")}>
-            <option value="">All sections</option>
-            {allSections.map((s) => (
-              <option key={s} value={s}>
-                Section {s}
-              </option>
-            ))}
-          </select>
-          <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-dash-muted" strokeWidth={2} />
-        </div>
         <div className="flex gap-1 ml-auto">
           <button
             type="button"
@@ -463,7 +548,7 @@ export default function Students() {
                 <tr className="bg-dash-canvas/80 text-left">
                   <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-dash-muted">Student</th>
                   <th className="px-4 py-4 text-xs font-bold uppercase tracking-wider text-dash-muted">Class</th>
-                  <th className="px-4 py-4 text-xs font-bold uppercase tracking-wider text-dash-muted">Placement</th>
+                  <th className="px-4 py-4 text-xs font-bold uppercase tracking-wider text-dash-muted">Reassign</th>
                   <th className="px-4 py-4 text-xs font-bold uppercase tracking-wider text-dash-muted">Age</th>
                   <th className="px-4 py-4 text-xs font-bold uppercase tracking-wider text-dash-muted">Gender</th>
                   <th className="hidden px-4 py-4 text-xs font-bold uppercase tracking-wider text-dash-muted sm:table-cell">Enrolled</th>
@@ -486,28 +571,23 @@ export default function Students() {
                       <td className="px-4 py-4 text-sm font-semibold text-dash-ink">{cls?.name || "—"}</td>
                       <td className="px-4 py-4">
                         {isAdmin || isTeacher ? (
-                          <div className="relative inline-block min-w-[160px] max-w-[220px]">
+                          <div className="relative inline-block min-w-[140px] max-w-[200px]">
                             <select
-                              value={`${student.classId}|${student.section}`}
-                              onChange={(e) => {
-                                const [cId, sec] = e.target.value.split("|");
-                                handleReassign(student.id, cId, sec);
-                              }}
+                              value={student.classId}
+                              onChange={(e) => handleReassign(student.id, e.target.value)}
                               className="w-full cursor-pointer appearance-none rounded-full border border-dash-subtle bg-dash-canvas py-2 pl-3 pr-8 text-xs font-bold text-dash-ink outline-none transition-colors hover:border-dash-ring focus:ring-2 focus:ring-dash-ink/10"
                             >
-                              {classes.flatMap((c) =>
-                                c.sections.map((s) => (
-                                  <option key={`${c.id}|${s}`} value={`${c.id}|${s}`}>
-                                    {c.name} · {s}
-                                  </option>
-                                )),
-                              )}
+                              {classes.map((c) => (
+                                <option key={c.id} value={c.id}>
+                                  {c.name}
+                                </option>
+                              ))}
                             </select>
                             <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-dash-muted" />
                           </div>
                         ) : (
                           <span className="text-sm font-semibold text-dash-ink">
-                            {cls?.name} · {student.section}
+                            {cls?.name || "—"}
                           </span>
                         )}
                       </td>
@@ -569,7 +649,7 @@ export default function Students() {
                 <div className="mb-4 flex flex-col items-center text-center">
                   <PersonAvatar kind="student" id={student.id} gender={student.gender} />
                   <h3 className="mt-3 text-base font-bold text-dash-ink">{student.name}</h3>
-                  <p className="text-xs font-medium text-dash-muted">{cls?.name || "—"} · Section {student.section}</p>
+                  <p className="text-xs font-medium text-dash-muted">{cls?.name || "—"}</p>
                 </div>
                 <div className="space-y-2 border-t border-dash-subtle pt-3">
                   <div className="flex justify-between text-sm">
@@ -619,8 +699,14 @@ export default function Students() {
         </div>
       )}
 
-      {showAddStudent && <AddStudentModal onClose={() => setShowAddStudent(false)} onSave={handleAddStudent} classes={classes} />}
-      {showManageClasses && <ManageClassesModal onClose={() => setShowManageClasses(false)} classes={classes} setClasses={setClasses} />}
+      {showAddStudent && <AddStudentModal onClose={() => setShowAddStudent(false)} onSave={handleAddStudent} classes={classes} setClasses={setClasses} />}
+      {showManageClasses && (
+        <ManageClassesModal
+          onClose={() => setShowManageClasses(false)}
+          classes={classes}
+          setClasses={setClasses}
+        />
+      )}
     </div>
   );
 }
