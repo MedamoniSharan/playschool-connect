@@ -1,18 +1,100 @@
 import os
 import json
 import uuid
-import boto3
-from botocore.exceptions import ClientError
 import logging
+from urllib.parse import urlparse
+
+import boto3
+from botocore.config import Config
+from botocore.exceptions import ClientError
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 region = os.environ.get('AWS_REGION', 'ap-south-2')
 dynamodb = boto3.resource('dynamodb', region_name=region)
-s3_client = boto3.client('s3', region_name=region)
+
+# Regional endpoint + virtual-hosted URLs so presigned PUTs sign `host` as
+# `{bucket}.s3.{region}.amazonaws.com`. The legacy global host `{bucket}.s3.amazonaws.com`
+# for non–us-east-1 buckets often leads to 403 / redirects and Chrome reports "CORS error".
+_s3_config = Config(
+    signature_version="s3v4",
+    s3={"addressing_style": "virtual"},
+)
+_s3_endpoint = os.environ.get(
+    "S3_REGIONAL_ENDPOINT",
+    f"https://s3.{region}.amazonaws.com",
+)
+s3_client = boto3.client(
+    "s3",
+    region_name=region,
+    endpoint_url=_s3_endpoint,
+    config=_s3_config,
+)
 
 GALLERY_S3_BUCKET = os.environ.get('GALLERY_S3_BUCKET', 'playschool-gallery-uploads')
+# Presigned GET for listing / immediate display (private objects). Lambda role needs s3:GetObject on this prefix.
+_GALLERY_GET_URL_TTL = int(os.environ.get("GALLERY_GET_URL_TTL_SECONDS", "3600"))
+
+
+def _json_safe_dynamo(obj):
+    """Convert DynamoDB-style values (e.g. Decimal) for JSON serialization."""
+    return json.loads(json.dumps(obj, default=str))
+
+
+def _gallery_object_key(item):
+    """Resolve S3 object key for this gallery row (stored s3Key or parsed from canonical url)."""
+    key = item.get("s3Key")
+    if isinstance(key, str) and key.startswith("gallery/"):
+        return key
+    url = item.get("url")
+    if not url or not isinstance(url, str):
+        return None
+    if not (url.startswith("http://") or url.startswith("https://")):
+        return None
+    try:
+        parsed = urlparse(url)
+        host = (parsed.netloc or "").lower()
+        bucket_l = GALLERY_S3_BUCKET.lower()
+        if not host.startswith(f"{bucket_l}.s3."):
+            return None
+        if not host.endswith(".amazonaws.com"):
+            return None
+        path = parsed.path.lstrip("/")
+        if path.startswith("gallery/"):
+            return path
+    except Exception:
+        return None
+    return None
+
+
+def _presigned_get_object_url(key):
+    if not key:
+        return None
+    try:
+        return s3_client.generate_presigned_url(
+            "get_object",
+            Params={"Bucket": GALLERY_S3_BUCKET, "Key": key},
+            ExpiresIn=_GALLERY_GET_URL_TTL,
+        )
+    except ClientError as e:
+        logger.warning("Could not presign GET for s3://%s/%s: %s", GALLERY_S3_BUCKET, key, e)
+        return None
+
+
+def _item_with_readable_url(item):
+    """Return a copy of item with url replaced by a time-limited presigned GET when object is in our bucket."""
+    if not isinstance(item, dict):
+        return item
+    out = dict(item)
+    key = _gallery_object_key(out)
+    if not key:
+        return out
+    signed = _presigned_get_object_url(key)
+    if signed:
+        out["url"] = signed
+    return out
+
 
 CORS_HEADERS = {
     "Content-Type": "application/json",
@@ -138,15 +220,20 @@ def save_media_handler(event, context):
             "event": body["event"],
             "date": body["date"],
             "studentIds": body.get("studentIds", []),
-            "uploadedBy": body["uploadedBy"]
+            "uploadedBy": body["uploadedBy"],
         }
+        if body.get("s3Key") and isinstance(body["s3Key"], str):
+            item["s3Key"] = body["s3Key"]
 
         gallery_table.put_item(Item=item)
+
+        # Response url is presigned GET so the browser can render the image without a public bucket policy.
+        response_media = _item_with_readable_url(item)
 
         return {
             "statusCode": 200,
             "headers": CORS_HEADERS,
-            "body": json.dumps({"media": item})
+            "body": json.dumps({"media": response_media}, default=str),
         }
     except Exception as e:
         logger.error(f"Error saving media: {e}")
@@ -158,15 +245,19 @@ def save_media_handler(event, context):
 
 
 def list_media_handler(event, context):
-    """List all gallery media items from DynamoDB."""
+    """List all gallery media items from DynamoDB (presigned GET urls for our private S3 objects)."""
     try:
         response = gallery_table.scan()
-        items = response.get('Items', [])
+        items = response.get("Items", [])
+        safe_items = _json_safe_dynamo(items)
+        if not isinstance(safe_items, list):
+            safe_items = items
+        readable = [_item_with_readable_url(it) for it in safe_items]
 
         return {
             "statusCode": 200,
             "headers": CORS_HEADERS,
-            "body": json.dumps({"media": items})
+            "body": json.dumps({"media": readable}, default=str),
         }
     except Exception as e:
         logger.error(f"Error listing media: {e}")

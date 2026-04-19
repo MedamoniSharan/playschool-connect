@@ -36,6 +36,8 @@ export interface ClassRoom {
 export interface MediaItem {
   id: string;
   url: string;
+  /** When set, backend can presign GET without parsing `url`. */
+  s3Key?: string;
   type: "photo" | "video";
   title: string;
   event: string;

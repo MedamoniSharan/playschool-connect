@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { API_URLS } from "@/config/api";
 import { useApp } from "@/context/AppContext";
 import { PageHeader, PersonAvatar } from "@/components/ui-custom/SharedComponents";
 import { Calendar } from "@/components/ui/calendar";
@@ -27,14 +28,27 @@ export default function LessonPlans() {
   const [studentId, setStudentId] = useState("");
   const [activityId, setActivityId] = useState("");
 
-  const myClass = currentUser ? classes.find((c) => c.teacherId === currentUser.id) : undefined;
   const teacherStudents = currentUser?.role === "teacher" ? getStudentsForTeacher(currentUser.id) : [];
+
+  /** Class ids this teacher should see plans for (roster + linked class; avoids empty filter when `teacherId` is missing on class rows). */
+  const teacherPlanClassIds = useMemo(() => {
+    const ids = new Set<string>();
+    if (currentUser?.role !== "teacher") return ids;
+    teacherStudents.forEach((s) => {
+      if (s.classId) ids.add(s.classId);
+    });
+    const linked = classes.find((c) => c.teacherId === currentUser.id)?.id;
+    if (linked) ids.add(linked);
+    if (currentUser.classId) ids.add(currentUser.classId);
+    if (classes[0]?.id) ids.add(classes[0].id);
+    return ids;
+  }, [currentUser, classes, teacherStudents]);
 
   const visiblePlans = useMemo(() => {
     if (!currentUser) return [];
     let list = lessonPlans;
-    if (currentUser.role === "teacher" && myClass) {
-      list = list.filter((p) => p.classId === myClass.id);
+    if (currentUser.role === "teacher" && teacherPlanClassIds.size > 0) {
+      list = list.filter((p) => teacherPlanClassIds.has(p.classId));
     }
     if (currentUser.role === "parent") {
       const parentChildren = getChildrenForParent(currentUser.id);
@@ -42,7 +56,7 @@ export default function LessonPlans() {
       list = list.filter((p) => ids.includes(p.studentId));
     }
     return list.sort((a, b) => b.date.localeCompare(a.date));
-  }, [lessonPlans, currentUser, myClass, getChildrenForParent]);
+  }, [lessonPlans, currentUser, teacherPlanClassIds, getChildrenForParent]);
 
   const plansForCalendar = useMemo(() => {
     if (!selectedDate) return visiblePlans;
@@ -156,6 +170,15 @@ export default function LessonPlans() {
           </div>
         }
       />
+
+      {!API_URLS.lessons && (
+        <div className="mb-6 rounded-[20px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+          Lesson plans are not loading from the server because no lessons API URL is set. Add{" "}
+          <span className="font-mono font-semibold">VITE_LESSONS_API_URL</span> to{" "}
+          <span className="font-mono">.env.local</span> (your deployed lessons Lambda URL), then restart{" "}
+          <span className="font-mono">npm run dev</span>.
+        </div>
+      )}
 
       {canManage && rosterForForm.length > 0 && (
         <div className="mb-8 rounded-[24px] border border-dash-subtle bg-dash-surface p-4">

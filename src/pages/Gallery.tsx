@@ -160,12 +160,12 @@ function UploadModal({ onClose }: { onClose: () => void }) {
       const result = await uploadGalleryImage(entry.file, title, event, selectedStudents);
       clearInterval(progressInterval);
 
-      if (result) {
+      if (result.ok) {
         setFiles((prev) => prev.map((f, idx) => idx === i ? { ...f, status: "done", progress: 100 } : f));
         toast.success(`"${entry.file.name}" uploaded successfully`);
       } else {
         setFiles((prev) => prev.map((f, idx) => idx === i ? { ...f, status: "error", progress: 0 } : f));
-        toast.error(`Failed to upload "${entry.file.name}"`);
+        toast.error(result.message || `Failed to upload "${entry.file.name}"`);
       }
     }
 

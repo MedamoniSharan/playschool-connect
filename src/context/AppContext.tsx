@@ -17,6 +17,11 @@ import type {
 import { buildReportFromData } from "@/lib/montessori";
 import { API_URLS } from "@/config/api";
 
+/** Result of a direct S3 upload via presigned URL (see `uploadGalleryImage`). */
+export type GalleryUploadResult =
+  | { ok: true; media: MediaItem }
+  | { ok: false; message: string };
+
 /** Parse API Gateway / Lambda proxy payloads — direct JSON, string body, or object body */
 function parseApiResponse(raw: unknown): Record<string, unknown> {
   if (raw === null || typeof raw !== "object") return {};
@@ -72,7 +77,7 @@ interface AppState {
   addLessonPlan: (plan: Omit<LessonPlan, "id">) => void;
   removeLessonPlan: (id: string) => void;
   generateStudentReport: (studentId: string) => void;
-  uploadGalleryImage: (file: File, title: string, event: string, studentIds: string[]) => Promise<MediaItem | null>;
+  uploadGalleryImage: (file: File, title: string, event: string, studentIds: string[]) => Promise<GalleryUploadResult>;
   addSectionToClass: (classId: string, section: string) => void;
 }
 
@@ -241,15 +246,35 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           }
         }
 
-        // Load Lesson Plans and Progress
+        // Load lesson plans + progress (same Dynamo table; API may return split or mixed `plans`)
         if (API_URLS.lessons) {
           try {
-            const lessonsRes = await fetch(`${API_URLS.lessons}?action=get_plans`);
+            const lessonsRes = await fetch(API_URLS.lessons, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ action: "get_plans" }),
+            });
             if (lessonsRes.ok) {
               const lData = parseApiResponse(await lessonsRes.json());
-              if (lData.plans) setLessonPlans(lData.plans as LessonPlan[]);
+              const planRows: LessonPlan[] = [];
+              const progRows: LessonProgress[] = [];
+              if (Array.isArray(lData.progress)) {
+                progRows.push(...(lData.progress as LessonProgress[]));
+              }
+              if (Array.isArray(lData.plans)) {
+                for (const item of lData.plans as unknown[]) {
+                  if (!item || typeof item !== "object") continue;
+                  const o = item as Record<string, unknown>;
+                  if (typeof o.date === "string") planRows.push(item as LessonPlan);
+                  else if (o.stage) progRows.push(item as LessonProgress);
+                }
+              }
+              if (planRows.length) setLessonPlans(planRows);
+              if (progRows.length) setLessonProgress(progRows);
             }
-          } catch (e) { console.error('Failed to load lesson plans:', e); }
+          } catch (e) {
+            console.error("Failed to load lesson plans:", e);
+          }
         }
 
       } catch (e) {
@@ -560,38 +585,97 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   );
 
   const uploadGalleryImage = useCallback(
-    async (file: File, title: string, event: string, studentIds: string[]): Promise<MediaItem | null> => {
-      if (!currentUser) return null;
+    async (file: File, title: string, event: string, studentIds: string[]): Promise<GalleryUploadResult> => {
+      if (!currentUser) {
+        return { ok: false, message: "You need to be signed in to upload photos." };
+      }
+
+      // Presigned PUT URLs are signed for specific headers (e.g. content-type;host). The browser
+      // must send the exact same Content-Type the backend used when signing. Omitting it or
+      // using a different value breaks the signature; S3 may respond in ways that surface as a
+      // CORS error in the console. Do not add Authorization or other custom headers on this fetch.
+      const contentType = file.type?.trim() ? file.type : "image/jpeg";
+
       try {
-        // Step 1: Get presigned URL from Lambda
+        // Step 1: Get presigned URL from Lambda (must sign the same contentType as the PUT below)
         const presignRes = await fetch(`${API_URLS.gallery}?action=get_presigned_url`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ fileName: file.name, contentType: file.type }),
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ fileName: file.name, contentType }),
         });
-        if (!presignRes.ok) throw new Error('Failed to get upload URL');
-        const presignRaw = await presignRes.json();
-        // API Gateway may return body as a JSON string — parse it if needed
-        const presignData = typeof presignRaw.body === 'string' ? JSON.parse(presignRaw.body) : presignRaw;
-        const { uploadUrl, s3Url } = presignData;
+        const presignBodyText = await presignRes.text();
+        if (!presignRes.ok) {
+          console.error("[gallery upload] presign failed", presignRes.status, presignBodyText);
+          return {
+            ok: false,
+            message: "Could not prepare the upload. Please try again or check your connection.",
+          };
+        }
+        let presignRaw: unknown;
+        try {
+          presignRaw = JSON.parse(presignBodyText);
+        } catch {
+          console.error("[gallery upload] presign response not JSON", presignBodyText);
+          return { ok: false, message: "Server returned an invalid response. Please try again." };
+        }
+        const presignData = parseApiResponse(presignRaw);
+        const uploadUrl = presignData.uploadUrl as string | undefined;
+        const s3Url = presignData.s3Url as string | undefined;
+        const s3Key = presignData.s3Key as string | undefined;
 
-        if (!uploadUrl) throw new Error('No upload URL received from server');
+        if (!uploadUrl || !s3Url) {
+          console.error("[gallery upload] missing uploadUrl or s3Url", presignData);
+          return { ok: false, message: "Upload link was not provided. Please try again." };
+        }
 
-        // Step 2: PUT file directly to S3 via presigned URL
+        let presignedOrigin = "";
+        let presignedPath = "";
+        try {
+          const u = new URL(uploadUrl);
+          presignedOrigin = u.origin;
+          presignedPath = u.pathname;
+        } catch {
+          /* ignore */
+        }
+        console.debug("[gallery upload] S3 PUT", {
+          fileName: file.name,
+          fileType: file.type,
+          contentType,
+          presignedHost: presignedOrigin,
+          presignedPath,
+          ...(import.meta.env.DEV ? { uploadUrl } : {}),
+        });
+
+        // Step 2: PUT file directly to S3 — only Content-Type; no FormData, no Authorization
         const uploadRes = await fetch(uploadUrl, {
-          method: 'PUT',
-          headers: { 'Content-Type': file.type || 'application/octet-stream' },
+          method: "PUT",
+          headers: {
+            "Content-Type": contentType,
+          },
           body: file,
         });
-        if (!uploadRes.ok) throw new Error('Failed to upload file to S3');
+        const uploadErrText = uploadRes.ok ? "" : await uploadRes.text().catch(() => "");
+        console.debug("[gallery upload] S3 response", { status: uploadRes.status, ok: uploadRes.ok, body: uploadErrText.slice(0, 500) });
+
+        if (!uploadRes.ok) {
+          console.error("[gallery upload] S3 PUT failed", uploadRes.status, uploadErrText);
+          return {
+            ok: false,
+            message:
+              uploadRes.status === 403
+                ? "Upload was denied. Try again, or ask an admin to check storage permissions."
+                : "Could not upload the file. Check the image format and try again.",
+          };
+        }
 
         // Step 3: Save metadata to DynamoDB via Lambda
         const mediaId = `m${Date.now()}`;
-        const today = new Date().toISOString().split('T')[0];
+        const today = new Date().toISOString().split("T")[0];
         const mediaItem: MediaItem = {
           id: mediaId,
           url: s3Url,
-          type: 'photo',
+          ...(s3Key ? { s3Key } : {}),
+          type: "photo",
           title,
           event,
           date: today,
@@ -600,36 +684,66 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         };
 
         const saveRes = await fetch(`${API_URLS.gallery}?action=save_media`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(mediaItem),
         });
-        const saveRaw = await saveRes.json();
-        const saveData = typeof saveRaw.body === 'string' ? JSON.parse(saveRaw.body) : saveRaw;
-        if (saveRaw.statusCode && saveRaw.statusCode !== 200) throw new Error('Failed to save media metadata');
+        const saveText = await saveRes.text();
+        let saveOuter: Record<string, unknown>;
+        try {
+          saveOuter = JSON.parse(saveText) as Record<string, unknown>;
+        } catch {
+          console.error("[gallery upload] save_media not JSON", saveText);
+          return {
+            ok: false,
+            message: "File uploaded but saving details failed. Please try uploading again or contact support.",
+          };
+        }
+        const lambdaStatus =
+          typeof saveOuter.statusCode === "number" ? saveOuter.statusCode : saveRes.status;
+        if (!saveRes.ok || lambdaStatus < 200 || lambdaStatus >= 300) {
+          console.error("[gallery upload] save_media failed", lambdaStatus, saveText);
+          return {
+            ok: false,
+            message: "Photo uploaded to storage but could not be saved to the gallery. Please try again.",
+          };
+        }
 
-        // Update local state
-        setGallery((prev) => [mediaItem, ...prev]);
+        const innerSave = parseApiResponse(saveOuter);
+        const returned = innerSave.media;
+        const toStore: MediaItem =
+          returned &&
+          typeof returned === "object" &&
+          returned !== null &&
+          "url" in returned &&
+          typeof (returned as MediaItem).url === "string"
+            ? (returned as MediaItem)
+            : mediaItem;
 
-        // Notify parents
+        setGallery((prev) => [toStore, ...prev]);
+
         setNotifications((prev) => [
           {
             id: `n-gal-${Date.now()}`,
-            type: 'gallery',
-            title: 'New photos uploaded',
+            type: "gallery",
+            title: "New photos uploaded",
             message: `New photos from "${event}" have been added to the gallery.`,
             date: today,
             read: false,
-            targetRoles: ['parent'],
-            scope: 'global',
+            targetRoles: ["parent"],
+            scope: "global",
           },
           ...prev,
         ]);
 
-        return mediaItem;
+        return { ok: true, media: toStore };
       } catch (e) {
-        console.error('Gallery upload error:', e);
-        return null;
+        const err = e instanceof Error ? e : new Error(String(e));
+        console.error("[gallery upload] unexpected error", err);
+        const msg = err.message.includes("Failed to fetch")
+          ? "Upload failed (network or browser blocked the request). Check S3 bucket CORS for your site and try again."
+          : "Something went wrong while uploading. Please try again.";
+        return { ok: false, message: msg };
       }
     },
     [currentUser],

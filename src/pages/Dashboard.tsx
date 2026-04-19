@@ -406,9 +406,21 @@ function TeacherDashboard() {
   const { currentUser, getStudentsForTeacher, attendance, classes, lessonPlans, getActivitiesWithSubjects } = useApp();
   const myStudents = currentUser ? getStudentsForTeacher(currentUser.id) : [];
   const myClass = classes.find((c) => currentUser && c.teacherId === currentUser.id);
+  const teacherClassIds = useMemo(() => {
+    const ids = new Set<string>();
+    myStudents.forEach((s) => {
+      if (s.classId) ids.add(s.classId);
+    });
+    if (myClass?.id) ids.add(myClass.id);
+    if (currentUser?.classId) ids.add(currentUser.classId);
+    if (classes[0]?.id) ids.add(classes[0].id);
+    return ids;
+  }, [myStudents, myClass, currentUser, classes]);
+  const primaryClassId = teacherClassIds.size ? [...teacherClassIds][0] : myClass?.id;
+  const displayClass = classes.find((c) => c.id === primaryClassId) ?? myClass ?? classes[0];
   const todayStr = "2026-04-11";
-  const todayAttendance = attendance.find((a) => a.classId === myClass?.id && a.date === todayStr);
-  const todayPlans = lessonPlans.filter((p) => p.classId === myClass?.id && p.date === todayStr);
+  const todayAttendance = attendance.find((a) => a.classId === primaryClassId && a.date === todayStr);
+  const todayPlans = lessonPlans.filter((p) => teacherClassIds.has(p.classId) && p.date === todayStr);
   const presentCount = todayAttendance?.records.filter((r) => r.status === "present").length || 0;
   const attPct = myStudents.length ? Math.round((presentCount / myStudents.length) * 100) : 0;
 
@@ -421,7 +433,7 @@ function TeacherDashboard() {
             <GraduationCap className="inline-block h-8 w-8 align-middle md:h-9 md:w-9" strokeWidth={1.75} />{" "}
             today
           </h1>
-          <p className="mt-2 text-sm text-dash-muted md:text-base">{myClass?.name ?? "Class"} · quick actions and roster</p>
+          <p className="mt-2 text-sm text-dash-muted md:text-base">{displayClass?.name ?? "Class"} · quick actions and roster</p>
         </div>
         <div className="flex gap-2">
           <Link
@@ -444,7 +456,7 @@ function TeacherDashboard() {
       <div className="grid gap-4 md:grid-cols-3">
         <div className="rounded-[28px] border border-dash-subtle bg-dash-surface p-6 shadow-sm">
           <p className="text-sm font-medium text-dash-muted">Class</p>
-          <p className="mt-2 text-xl font-bold text-dash-ink">{myClass?.name || "—"}</p>
+          <p className="mt-2 text-xl font-bold text-dash-ink">{displayClass?.name || "—"}</p>
         </div>
         <div className="rounded-[28px] border border-dash-subtle bg-dash-surface p-6 shadow-sm">
           <p className="text-sm font-medium text-dash-muted">Students</p>
