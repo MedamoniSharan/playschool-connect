@@ -1,10 +1,13 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import type { Subject, Activity } from "@/types";
 import { useApp } from "@/context/AppContext";
-import { Plus, BookOpen, ChevronDown } from "lucide-react";
+import { Plus, BookOpen, ChevronDown, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 export default function Curriculum() {
-  const { currentUser, classes, curriculum, addSubject, addActivity } = useApp();
+  const { currentUser, classes, students, curriculum, addSubject, addActivity, removeSubject, removeActivity } =
+    useApp();
   const [classId, setClassId] = useState(
     currentUser?.role === "teacher" ? currentUser.classId ?? classes[0]?.id : classes[0]?.id ?? "",
   );
@@ -20,20 +23,70 @@ export default function Curriculum() {
     );
   }
 
-  const effectiveClassId = currentUser.role === "teacher" ? currentUser.classId ?? classId : classId;
+  /** Prefer real class from roster / linked class — not stale profile `classId` (e.g. c1 vs c177…). */
+  const teacherCurriculumClassId = useMemo(() => {
+    if (currentUser.role !== "teacher") return "";
+    const fromStudents = [...new Set(students.map((s) => s.classId).filter(Boolean))];
+    if (fromStudents.length === 1) return fromStudents[0];
+    if (fromStudents.length > 0) return fromStudents[0];
+    const linked = classes.find((c) => c.teacherId === currentUser.id)?.id;
+    if (linked) return linked;
+    if (classes[0]?.id) return classes[0].id;
+    return currentUser.classId ?? "";
+  }, [currentUser, classes, students]);
+
+  const effectiveClassId = currentUser.role === "teacher" ? teacherCurriculumClassId : classId;
   const cc = curriculum.find((c) => c.classId === effectiveClassId);
 
-  const handleAddSubject = () => {
-    if (!newSubjectName.trim() || !effectiveClassId) return;
-    addSubject(effectiveClassId, newSubjectName.trim());
+  const handleAddSubject = async () => {
+    if (!newSubjectName.trim()) {
+      toast.error("Enter a subject name");
+      return;
+    }
+    if (!effectiveClassId) {
+      toast.error("No class selected — add students or a class first, then reload.");
+      return;
+    }
+    const ok = await addSubject(effectiveClassId, newSubjectName.trim());
+    if (ok) toast.success("Subject saved");
+    else
+      toast.warning("Subject added only in this session", {
+        description: "The server did not return success — check Network tab or curriculum Lambda.",
+      });
     setNewSubjectName("");
   };
 
-  const handleAddActivity = (subjectId: string) => {
+  const handleAddActivity = async (subjectId: string) => {
     const name = (activityDraft[subjectId] || "").trim();
-    if (!name || !effectiveClassId) return;
-    addActivity(effectiveClassId, subjectId, name);
+    if (!name) {
+      toast.error("Enter an activity name");
+      return;
+    }
+    if (!effectiveClassId) {
+      toast.error("No class selected");
+      return;
+    }
+    const ok = await addActivity(effectiveClassId, subjectId, name);
+    if (ok) toast.success("Activity saved");
+    else toast.warning("Activity added only in this session", { description: "The server did not return success." });
     setActivityDraft((d) => ({ ...d, [subjectId]: "" }));
+  };
+
+  const handleRemoveSubject = async (sub: Subject) => {
+    if (!effectiveClassId) return;
+    if (!window.confirm(`Remove “${sub.name}” and all ${sub.activities.length} activities?`)) return;
+    const ok = await removeSubject(effectiveClassId, sub.id);
+    if (ok) {
+      toast.success("Subject removed");
+      if (subjectOpen === sub.id) setSubjectOpen(null);
+    } else toast.error("Could not remove subject — check API or redeploy curriculum Lambda.");
+  };
+
+  const handleRemoveActivity = async (subjectId: string, act: Activity) => {
+    if (!effectiveClassId) return;
+    const ok = await removeActivity(effectiveClassId, subjectId, act.id);
+    if (ok) toast.success(`Removed “${act.name}”`);
+    else toast.error("Could not remove activity.");
   };
 
   const inputClass =
@@ -97,27 +150,54 @@ export default function Curriculum() {
           const open = subjectOpen === sub.id;
           return (
             <div key={sub.id} className="overflow-hidden rounded-[24px] border border-dash-subtle bg-dash-surface shadow-sm">
-              <button
-                type="button"
-                onClick={() => setSubjectOpen(open ? null : sub.id)}
-                className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left transition-colors hover:bg-dash-canvas/80"
-              >
-                <div>
-                  <p className="text-lg font-bold text-dash-ink">{sub.name}</p>
-                  <p className="text-xs font-medium text-dash-muted">{sub.activities.length} activities</p>
-                </div>
-                <ChevronDown className={cn("h-5 w-5 shrink-0 text-dash-muted transition-transform", open && "rotate-180")} />
-              </button>
+              <div className="flex w-full items-stretch gap-1 border-b border-transparent">
+                <button
+                  type="button"
+                  onClick={() => setSubjectOpen(open ? null : sub.id)}
+                  className="flex min-w-0 flex-1 items-center justify-between gap-4 px-5 py-4 text-left transition-colors hover:bg-dash-canvas/80"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-lg font-bold text-dash-ink">{sub.name}</p>
+                    <p className="text-xs font-medium text-dash-muted">{sub.activities.length} activities</p>
+                  </div>
+                  <ChevronDown
+                    className={cn("h-5 w-5 shrink-0 text-dash-muted transition-transform", open && "rotate-180")}
+                  />
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    void handleRemoveSubject(sub);
+                  }}
+                  className="flex shrink-0 items-center justify-center px-4 text-red-600 transition-colors hover:bg-red-500/10"
+                  aria-label={`Remove subject ${sub.name}`}
+                  title="Remove subject"
+                >
+                  <Trash2 className="h-4 w-4" strokeWidth={2} />
+                </button>
+              </div>
               {open && (
                 <div className="space-y-3 border-t border-dash-subtle px-5 py-4">
                   <ul className="space-y-2">
                     {sub.activities.map((a) => (
                       <li
                         key={a.id}
-                        className="flex flex-col gap-1 rounded-2xl bg-dash-canvas/80 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                        className="flex flex-col gap-2 rounded-2xl bg-dash-canvas/80 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
                       >
-                        <span className="font-semibold text-dash-ink">{a.name}</span>
-                        {a.description && <span className="text-sm text-dash-muted">{a.description}</span>}
+                        <div className="min-w-0 flex-1">
+                          <span className="font-semibold text-dash-ink">{a.name}</span>
+                          {a.description && <span className="mt-0.5 block text-sm text-dash-muted">{a.description}</span>}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => void handleRemoveActivity(sub.id, a)}
+                          className="inline-flex shrink-0 items-center justify-center self-end rounded-full p-2 text-red-600 hover:bg-red-500/10 sm:self-center"
+                          aria-label={`Remove activity ${a.name}`}
+                          title="Remove activity"
+                        >
+                          <Trash2 className="h-4 w-4" strokeWidth={2} />
+                        </button>
                       </li>
                     ))}
                   </ul>

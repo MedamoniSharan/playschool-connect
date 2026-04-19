@@ -21,6 +21,7 @@ import { API_URLS } from "@/config/api";
 import { toast } from "sonner";
 
 function AddStudentModal({ onClose, onSave, classes, setClasses }: { onClose: () => void; onSave: (s: Student) => void; classes: ClassRoom[]; setClasses: React.Dispatch<React.SetStateAction<ClassRoom[]>> }) {
+  const { currentUser } = useApp();
   const [name, setName] = useState("");
   const [age, setAge] = useState("");
   const [classId, setClassId] = useState(classes[0]?.id || "");
@@ -37,7 +38,11 @@ function AddStudentModal({ onClose, onSave, classes, setClasses }: { onClose: ()
       const res = await fetch(API_URLS.users, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "add_class", name: newClassName.trim() }),
+        body: JSON.stringify({
+          action: "add_class",
+          name: newClassName.trim(),
+          teacherId: currentUser?.role === "teacher" ? currentUser.id : "",
+        }),
       });
       if (res.ok) {
         const raw = await res.json();
@@ -58,7 +63,7 @@ function AddStudentModal({ onClose, onSave, classes, setClasses }: { onClose: ()
     const newClass: ClassRoom = {
       id: `c${Date.now()}`,
       name: newClassName.trim(),
-      teacherId: "",
+      teacherId: currentUser?.role === "teacher" ? currentUser.id : "",
       sections: [],
       studentIds: [],
     };
@@ -83,6 +88,7 @@ function AddStudentModal({ onClose, onSave, classes, setClasses }: { onClose: ()
           parentName: parentName || `Parent of ${name}`,
           parentEmail,
           parentPassword,
+          teacherId: currentUser?.role === "teacher" ? currentUser.id : "",
           enrollmentDate: new Date().toISOString().split("T")[0],
         }),
       });
@@ -249,6 +255,7 @@ function ManageClassesModal({
   setClasses: React.Dispatch<React.SetStateAction<ClassRoom[]>>;
   teacherClassId?: string;
 }) {
+  const { currentUser } = useApp();
   const [newClassName, setNewClassName] = useState("");
 
   // If teacher, only show their class
@@ -260,7 +267,11 @@ function ManageClassesModal({
       const res = await fetch(API_URLS.users, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "add_class", name: newClassName.trim() }),
+        body: JSON.stringify({
+          action: "add_class",
+          name: newClassName.trim(),
+          teacherId: currentUser?.role === "teacher" ? currentUser.id : "",
+        }),
       });
       if (res.ok) {
         const raw = await res.json();
@@ -280,7 +291,7 @@ function ManageClassesModal({
     const newClass: ClassRoom = {
       id: `c${Date.now()}`,
       name: newClassName.trim(),
-      teacherId: "",
+      teacherId: currentUser?.role === "teacher" ? currentUser.id : "",
       sections: [],
       studentIds: [],
     };
@@ -472,9 +483,27 @@ export default function Students() {
     );
   };
 
-  const handleDeleteStudent = (id: string) => {
+  const handleDeleteStudent = async (id: string) => {
+    try {
+      const res = await fetch(API_URLS.users, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "delete_student", id }),
+      });
+      const raw = await res.json();
+      const data = typeof raw.body === "string" ? JSON.parse(raw.body) : raw;
+      if (!res.ok) {
+        toast.error(data.error || "Could not delete student");
+        return;
+      }
+    } catch (e) {
+      console.error("API error deleting student:", e);
+      toast.error("Could not delete student");
+      return;
+    }
     setStudents((prev) => prev.filter((s) => s.id !== id));
     setClasses((prev) => prev.map((c) => ({ ...c, studentIds: c.studentIds.filter((sid) => sid !== id) })));
+    toast.success("Student removed");
   };
 
   const handleReassign = (studentId: string, newClassId: string) => {
@@ -762,6 +791,7 @@ export default function Students() {
           onClose={() => setShowManageClasses(false)}
           classes={classes}
           setClasses={setClasses}
+          teacherClassId={isTeacher ? (currentUser?.classId || classes.find((c) => c.teacherId === currentUser?.id)?.id) : undefined}
         />
       )}
     </div>

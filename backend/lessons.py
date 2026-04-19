@@ -17,7 +17,7 @@ lessons_table = dynamodb.Table('Playschool_Lessons')
 
 def update_lesson_stage_handler(event, context):
     try:
-        body = json.loads(event.get("body", "{}"))
+        body = _parse_json_body(event)
         student_id = body.get("studentId")
         activity_id = body.get("activityId")
         stage = body.get("stage")
@@ -52,7 +52,7 @@ def update_lesson_stage_handler(event, context):
 
 def add_lesson_plan_handler(event, context):
     try:
-        body = json.loads(event.get("body", "{}"))
+        body = _parse_json_body(event)
         
         if not body:
              return {"statusCode": 400, "body": json.dumps({"error": "Plan data is required"})}
@@ -105,23 +105,62 @@ def get_all_plans_handler(event, context):
     except Exception as e:
         return {"statusCode": 500, "body": json.dumps({"error": str(e)})}
 
+CORS_HEADERS = {
+    "Content-Type": "application/json",
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+}
+
+
+def _http_method(event):
+    m = event.get("httpMethod")
+    if m:
+        return m
+    ctx = event.get("requestContext") or {}
+    http = ctx.get("http") or {}
+    return (http.get("method") or "").upper()
+
+
+def _parse_json_body(event):
+    raw = event.get("body") or "{}"
+    if isinstance(raw, str) and raw.strip() == "":
+        raw = "{}"
+    return json.loads(raw)
+
 def lambda_handler(event, context):
+    # Handle CORS preflight
+    if _http_method(event) == "OPTIONS":
+        return {
+            "statusCode": 200,
+            "headers": CORS_HEADERS,
+            "body": ""
+        }
+
     action = event.get('queryStringParameters', {}).get('action') if event.get('queryStringParameters') else None
 
     if not action:
         try:
-            body = json.loads(event.get("body", "{}"))
+            body = _parse_json_body(event)
             action = body.get("action")
-        except:
+        except Exception:
             action = None
 
     if action == 'update_stage':
-        return update_lesson_stage_handler(event, context)
+        res = update_lesson_stage_handler(event, context)
     elif action == 'add_plan':
-        return add_lesson_plan_handler(event, context)
+        res = add_lesson_plan_handler(event, context)
     elif action == 'remove_plan':
-        return remove_lesson_plan_handler(event, context)
+        res = remove_lesson_plan_handler(event, context)
     elif action == 'get_plans':
-        return get_all_plans_handler(event, context)
+        res = get_all_plans_handler(event, context)
     else:
-        return {"statusCode": 400, "body": json.dumps({"error": f"Missing or unknown action: {action}"})}
+        res = {"statusCode": 400, "body": json.dumps({"error": f"Missing or unknown action: {action}"})}
+
+    # Ensure CORS headers are attached to every response
+    if "headers" not in res:
+        res["headers"] = CORS_HEADERS
+    else:
+        res["headers"].update(CORS_HEADERS)
+
+    return res

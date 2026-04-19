@@ -18,8 +18,24 @@ CORS_HEADERS = {
     "Content-Type": "application/json",
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type"
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
 }
+
+
+def _http_method(event):
+    m = event.get("httpMethod")
+    if m:
+        return m
+    ctx = event.get("requestContext") or {}
+    http = ctx.get("http") or {}
+    return (http.get("method") or "").upper()
+
+
+def _parse_json_body(event):
+    raw = event.get("body") or "{}"
+    if isinstance(raw, str) and raw.strip() == "":
+        raw = "{}"
+    return json.loads(raw)
 
 
 def ensure_table_exists(table_name, key_schema, attribute_definitions):
@@ -51,7 +67,7 @@ gallery_table = ensure_table_exists(
 def get_presigned_url_handler(event, context):
     """Generate a presigned S3 PUT URL for the client to upload directly."""
     try:
-        body = json.loads(event.get("body", "{}"))
+        body = _parse_json_body(event)
         file_name = body.get("fileName")
         content_type = body.get("contentType", "image/jpeg")
 
@@ -103,7 +119,7 @@ def get_presigned_url_handler(event, context):
 def save_media_handler(event, context):
     """Save gallery media metadata to DynamoDB."""
     try:
-        body = json.loads(event.get("body", "{}"))
+        body = _parse_json_body(event)
 
         required_fields = ["id", "url", "title", "event", "date", "uploadedBy"]
         for field in required_fields:
@@ -164,21 +180,29 @@ def list_media_handler(event, context):
 def lambda_handler(event, context):
     """Main entry point — dispatch based on 'action' query parameter."""
     # Handle CORS preflight
-    if event.get("httpMethod") == "OPTIONS":
+    if _http_method(event) == "OPTIONS":
         return {"statusCode": 200, "headers": CORS_HEADERS, "body": ""}
 
     query_params = event.get("queryStringParameters") or {}
     action = query_params.get("action")
 
     if action == "get_presigned_url":
-        return get_presigned_url_handler(event, context)
+        res = get_presigned_url_handler(event, context)
     elif action == "save_media":
-        return save_media_handler(event, context)
+        res = save_media_handler(event, context)
     elif action == "list_media":
-        return list_media_handler(event, context)
+        res = list_media_handler(event, context)
     else:
-        return {
+        res = {
             "statusCode": 400,
-            "headers": CORS_HEADERS,
             "body": json.dumps({"error": "Missing or unknown 'action' parameter. Use: get_presigned_url, save_media, list_media"})
         }
+
+    # Ensure CORS headers are attached to every response if not already
+    if "headers" not in res:
+        res["headers"] = CORS_HEADERS
+    else:
+        # Merge CORS_HEADERS into existing headers
+        res["headers"].update(CORS_HEADERS)
+
+    return res

@@ -31,15 +31,47 @@ def ensure_table_exists(table_name, key_schema, attribute_definitions):
 # Initialize table — direct reference for fast cold start
 users_table = dynamodb.Table('Playschool_Users')
 
+CORS_HEADERS = {
+    "Content-Type": "application/json",
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+}
+
+
+def _http_method(event):
+    m = event.get("httpMethod")
+    if m:
+        return m
+    ctx = event.get("requestContext") or {}
+    http = ctx.get("http") or {}
+    return (http.get("method") or "").upper()
+
+
+def _parse_json_body(event):
+    raw = event.get("body") or "{}"
+    if isinstance(raw, str) and raw.strip() == "":
+        raw = "{}"
+    return json.loads(raw)
+
 def lambda_handler(event, context):
+    # Handle CORS preflight
+    if _http_method(event) == "OPTIONS":
+        return {
+            "statusCode": 200,
+            "headers": CORS_HEADERS,
+            "body": ""
+        }
+
     try:
-        body = json.loads(event.get("body", "{}"))
+        body = _parse_json_body(event)
         email = body.get("email")
         password = body.get("password")
         
         if not email or not password:
             return {
                 "statusCode": 400,
+                "headers": CORS_HEADERS,
                 "body": json.dumps({"error": "Email and password are required"})
             }
             
@@ -56,10 +88,7 @@ def lambda_handler(event, context):
             user_safe = {k: v for k, v in user.items() if k != "password"}
             return {
                 "statusCode": 200,
-                "headers": {
-                    "Content-Type": "application/json",
-                    "Access-Control-Allow-Origin": "*"
-                },
+                "headers": CORS_HEADERS,
                 "body": json.dumps({
                     "message": "Login successful",
                     "user": user_safe,
@@ -69,14 +98,13 @@ def lambda_handler(event, context):
             
         return {
             "statusCode": 401,
-            "headers": {
-                "Content-Type": "application/json",
-                "Access-Control-Allow-Origin": "*"
-            },
+            "headers": CORS_HEADERS,
             "body": json.dumps({"error": "Invalid email or password"})
         }
     except Exception as e:
+        logger.error(f"Auth error: {e}")
         return {
             "statusCode": 500,
+            "headers": CORS_HEADERS,
             "body": json.dumps({"error": str(e)})
         }

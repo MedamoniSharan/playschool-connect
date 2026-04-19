@@ -20,8 +20,16 @@ export default function Progress() {
   const [selectedStudentId, setSelectedStudentId] = useState("");
 
   const teacherClass = currentUser ? classes.find((c) => c.teacherId === currentUser.id) : undefined;
+  const teacherClassFallbackId = useMemo(() => {
+    if (currentUser?.role !== "teacher") return "";
+    const fromStudents = [...new Set(students.map((s) => s.classId).filter(Boolean))];
+    if (fromStudents.length === 1) return fromStudents[0];
+    if (fromStudents.length > 0) return fromStudents[0];
+    return teacherClass?.id ?? classes[0]?.id ?? currentUser.classId ?? "";
+  }, [currentUser, students, teacherClass, classes]);
+
   const effectiveClassId =
-    currentUser?.role === "admin" ? adminClassId : teacherClass?.id ?? "";
+    currentUser?.role === "admin" ? adminClassId : teacherClassFallbackId;
 
   const roster = useMemo(() => {
     if (!currentUser) return [];

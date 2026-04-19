@@ -17,12 +17,22 @@ import type {
 import { buildReportFromData } from "@/lib/montessori";
 import { API_URLS } from "@/config/api";
 
-/** Parse API Gateway response — handles both direct JSON and wrapped {statusCode, body} formats */
-function parseApiResponse(raw: Record<string, unknown>): Record<string, unknown> {
-  if (typeof raw.body === 'string') {
-    try { return JSON.parse(raw.body); } catch { return raw; }
+/** Parse API Gateway / Lambda proxy payloads — direct JSON, string body, or object body */
+function parseApiResponse(raw: unknown): Record<string, unknown> {
+  if (raw === null || typeof raw !== "object") return {};
+  const obj = raw as Record<string, unknown>;
+  if (typeof obj.body === "string") {
+    try {
+      const inner = JSON.parse(obj.body) as unknown;
+      return typeof inner === "object" && inner !== null ? (inner as Record<string, unknown>) : {};
+    } catch {
+      return obj;
+    }
   }
-  return raw;
+  if (obj.body !== undefined && typeof obj.body === "object" && obj.body !== null && !Array.isArray(obj.body)) {
+    return obj.body as Record<string, unknown>;
+  }
+  return obj;
 }
 
 interface AppState {
@@ -55,8 +65,10 @@ interface AppState {
   getStudentsForTeacher: (teacherId: string) => Student[];
   getActivitiesWithSubjects: (classId: string) => { activity: Activity; subjectName: string }[];
   updateLessonStage: (studentId: string, activityId: string, stage: LessonProgress["stage"]) => void;
-  addSubject: (classId: string, name: string) => void;
-  addActivity: (classId: string, subjectId: string, name: string, description?: string) => void;
+  addSubject: (classId: string, name: string) => Promise<boolean>;
+  addActivity: (classId: string, subjectId: string, name: string, description?: string) => Promise<boolean>;
+  removeSubject: (classId: string, subjectId: string) => Promise<boolean>;
+  removeActivity: (classId: string, subjectId: string, activityId: string) => Promise<boolean>;
   addLessonPlan: (plan: Omit<LessonPlan, "id">) => void;
   removeLessonPlan: (id: string) => void;
   generateStudentReport: (studentId: string) => void;
@@ -123,26 +135,54 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (!currentUser) return;
     const loadContextData = async () => {
       try {
+        const curriculumClassIds = new Set<string>();
+        const noteCurriculumClass = (classId: string | undefined) => {
+          if (classId) curriculumClassIds.add(classId);
+        };
+
         // Load students based on role
         if (currentUser.role === "teacher") {
           const res = await fetch(`${API_URLS.users}?action=get_students&teacherId=${currentUser.id}`);
           if (res.ok) {
             const data = parseApiResponse(await res.json());
-            if (data.students) setStudents(data.students as Student[]);
-            if (data.classId) setClasses([{ id: data.classId as string, name: '', teacherId: currentUser.id, sections: [], studentIds: (data.students as Student[])?.map((s: Student) => s.id) || [] }]);
+            if (data.students) {
+              const list = data.students as Student[];
+              setStudents(list);
+              list.forEach((s) => noteCurriculumClass(s.classId));
+            }
+            if (data.classId) {
+              noteCurriculumClass(data.classId as string);
+              setClasses([
+                {
+                  id: data.classId as string,
+                  name: "",
+                  teacherId: currentUser.id,
+                  sections: [],
+                  studentIds: (data.students as Student[])?.map((s: Student) => s.id) || [],
+                },
+              ]);
+            }
           }
         } else if (currentUser.role === "parent") {
           const res = await fetch(`${API_URLS.users}?action=get_children&parentId=${currentUser.id}`);
           if (res.ok) {
             const data = parseApiResponse(await res.json());
-            if (data.children) setStudents(data.children as Student[]);
+            if (data.children) {
+              const list = data.children as Student[];
+              setStudents(list);
+              list.forEach((s) => noteCurriculumClass(s.classId));
+            }
           }
         } else if (currentUser.role === "admin") {
           // Admin: try to get all students via seed/users endpoint
           const res = await fetch(`${API_URLS.users}?action=get_all_students`);
           if (res.ok) {
             const data = parseApiResponse(await res.json());
-            if (data.students) setStudents(data.students as Student[]);
+            if (data.students) {
+              const list = data.students as Student[];
+              setStudents(list);
+              list.forEach((s) => noteCurriculumClass(s.classId));
+            }
           }
         }
 
@@ -164,9 +204,42 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           });
           if (classesRes.ok) {
             const cData = parseApiResponse(await classesRes.json());
-            if (cData.classes) setClasses(cData.classes as ClassRoom[]);
+            if (cData.classes) {
+              const list = cData.classes as ClassRoom[];
+              setClasses(list);
+              list.forEach((c) => noteCurriculumClass(c.id));
+            }
           }
         } catch (e) { console.error('Failed to load classes:', e); }
+
+        if (currentUser.classId) noteCurriculumClass(currentUser.classId);
+
+        // Load curriculum per class from API (DynamoDB)
+        if (API_URLS.curriculum && curriculumClassIds.size > 0) {
+          try {
+            const merged: ClassCurriculum[] = [];
+            for (const classId of curriculumClassIds) {
+              // Use POST: API Gateway often has POST wired; GET on this URL can return 404.
+              const cr = await fetch(API_URLS.curriculum, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ action: "get_curriculum", classId }),
+              });
+              if (!cr.ok) continue;
+              const curData = parseApiResponse(await cr.json()) as { curriculum?: ClassCurriculum };
+              if (curData.curriculum) merged.push(curData.curriculum);
+            }
+            if (merged.length > 0) {
+              setCurriculum((prev) => {
+                const byId = new Map(prev.map((c) => [c.classId, c]));
+                for (const c of merged) byId.set(c.classId, c);
+                return Array.from(byId.values());
+              });
+            }
+          } catch (e) {
+            console.error("Failed to load curriculum:", e);
+          }
+        }
 
         // Load Lesson Plans and Progress
         if (API_URLS.lessons) {
@@ -199,7 +272,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const getStudentsForTeacher = useCallback(
     (teacherId: string) => {
       const cls = classesState.find((c) => c.teacherId === teacherId);
-      if (!cls) return [];
+      // Fallback for legacy/misaligned class records with empty teacherId:
+      // teacher endpoint already returns teacher-scoped students in studentsState.
+      if (!cls) return studentsState;
       return studentsState.filter((s) => cls.studentIds.includes(s.id));
     },
     [studentsState, classesState],
@@ -272,21 +347,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     [studentsState, currentUser?.role],
   );
 
-  const addSubject = useCallback(async (classId: string, name: string) => {
+  const addSubject = useCallback(async (classId: string, name: string): Promise<boolean> => {
+    if (!classId.trim()) return false;
     let subject: Subject | null = null;
+    let apiOk = false;
     try {
       const res = await fetch(API_URLS.curriculum, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'add_subject', classId, name })
       });
-      if (res.ok) {
-        const data = parseApiResponse(await res.json());
-        if (data.subject) subject = data.subject as Subject;
+      const raw = await res.json();
+      const data = parseApiResponse(raw);
+      if (res.ok && data.subject) {
+        subject = data.subject as Subject;
+        apiOk = true;
       }
     } catch (e) { console.error("API error", e); }
 
-    // Fallback: create locally if API didn't return one
+    // Fallback: create locally only if API failed (avoid duplicate ids vs server)
     if (!subject) {
       const id = `sub-${classId}-${Date.now()}`;
       subject = { id, classId, name, activities: [] };
@@ -297,22 +376,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (exists) {
         return prev.map((c) => c.classId === classId ? { ...c, subjects: [...c.subjects, subject!] } : c);
       }
-      // Create new curriculum entry for this class
       return [...prev, { classId, subjects: [subject!] }];
     });
+    return apiOk;
   }, []);
 
-  const addActivity = useCallback(async (classId: string, subjectId: string, name: string, description?: string) => {
+  const addActivity = useCallback(async (classId: string, subjectId: string, name: string, description?: string): Promise<boolean> => {
+    if (!classId.trim() || !subjectId.trim()) return false;
     let newAct: Activity | null = null;
+    let apiOk = false;
     try {
       const res = await fetch(API_URLS.curriculum, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'add_activity', classId, subjectId, name, description })
       });
-      if (res.ok) {
-        const data = parseApiResponse(await res.json());
-        if (data.activity) newAct = data.activity as Activity;
+      const raw = await res.json();
+      const data = parseApiResponse(raw);
+      if (res.ok && data.activity) {
+        newAct = data.activity as Activity;
+        apiOk = true;
       }
     } catch (e) { console.error("API error", e); }
 
@@ -332,6 +415,63 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         };
       }),
     );
+    return apiOk;
+  }, []);
+
+  const removeSubject = useCallback(async (classId: string, subjectId: string): Promise<boolean> => {
+    if (!classId.trim() || !subjectId.trim()) return false;
+    let apiOk = false;
+    try {
+      const res = await fetch(API_URLS.curriculum, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "remove_subject", classId, subjectId }),
+      });
+      const data = parseApiResponse(await res.json());
+      if (res.ok && data.ok === true) apiOk = true;
+    } catch (e) {
+      console.error("API error remove_subject", e);
+    }
+    if (apiOk) {
+      setCurriculum((prev) =>
+        prev.map((c) =>
+          c.classId !== classId ? c : { ...c, subjects: c.subjects.filter((s) => s.id !== subjectId) },
+        ),
+      );
+    }
+    return apiOk;
+  }, []);
+
+  const removeActivity = useCallback(async (classId: string, subjectId: string, activityId: string): Promise<boolean> => {
+    if (!classId.trim() || !subjectId.trim() || !activityId.trim()) return false;
+    let apiOk = false;
+    try {
+      const res = await fetch(API_URLS.curriculum, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "remove_activity", classId, subjectId, activityId }),
+      });
+      const data = parseApiResponse(await res.json());
+      if (res.ok && data.ok === true) apiOk = true;
+    } catch (e) {
+      console.error("API error remove_activity", e);
+    }
+    if (apiOk) {
+      setCurriculum((prev) =>
+        prev.map((c) => {
+          if (c.classId !== classId) return c;
+          return {
+            ...c,
+            subjects: c.subjects.map((s) =>
+              s.id !== subjectId
+                ? s
+                : { ...s, activities: s.activities.filter((a) => a.id !== activityId) },
+            ),
+          };
+        }),
+      );
+    }
+    return apiOk;
   }, []);
 
   const addLessonPlan = useCallback(async (plan: Omit<LessonPlan, "id">) => {
@@ -390,11 +530,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           body: JSON.stringify({ studentId })
         });
         if (res.ok) {
-           const data = await res.json();
-           if (data.report) {
-              finalReportId = data.report.id;
-              generatedAt = data.report.generatedAt;
-           }
+          const data = parseApiResponse(await res.json());
+          if (data.report) {
+            const rep = data.report as { id?: string; generatedAt?: string };
+            if (rep.id) finalReportId = rep.id;
+            if (rep.generatedAt) generatedAt = rep.generatedAt as string;
+          }
         }
       } catch (e) {
         console.error("API error reports", e);
@@ -439,6 +580,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         // Step 2: PUT file directly to S3 via presigned URL
         const uploadRes = await fetch(uploadUrl, {
           method: 'PUT',
+          headers: { 'Content-Type': file.type || 'application/octet-stream' },
           body: file,
         });
         if (!uploadRes.ok) throw new Error('Failed to upload file to S3');
@@ -537,6 +679,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       updateLessonStage,
       addSubject,
       addActivity,
+      removeSubject,
+      removeActivity,
       addLessonPlan,
       removeLessonPlan,
       generateStudentReport,
@@ -563,6 +707,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       updateLessonStage,
       addSubject,
       addActivity,
+      removeSubject,
+      removeActivity,
       addLessonPlan,
       removeLessonPlan,
       generateStudentReport,
