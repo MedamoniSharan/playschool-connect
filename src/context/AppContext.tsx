@@ -48,6 +48,7 @@ function parseApiResponse(raw: unknown): Record<string, unknown> {
 interface AppState {
   currentUser: User | null;
   isAuthenticated: boolean;
+  isBootstrapping: boolean;
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
   allUsers: User[];
@@ -130,6 +131,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
   const [lessonPlansState, setLessonPlans] = useState<LessonPlan[]>([]);
   const [studentReportsState, setStudentReports] = useState<StudentReport[]>([]);
+  const [isBootstrapping, setIsBootstrapping] = useState(false);
 
   const login = useCallback(async (email: string, password: string): Promise<boolean> => {
     try {
@@ -184,6 +186,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (!currentUser) return;
     notificationsSyncReadyRef.current = false;
     notificationsHydratedRef.current = false;
+    setIsBootstrapping(true);
     const loadContextData = async () => {
       try {
         const curriculumClassIds = new Set<string>();
@@ -346,6 +349,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       } catch (e) {
         console.error("Failed to load user data from API:", e);
+      } finally {
+        setIsBootstrapping(false);
       }
     };
     loadContextData();
@@ -839,6 +844,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     () => ({
       currentUser,
       isAuthenticated: !!currentUser,
+      isBootstrapping,
       login,
       logout,
       allUsers: allUsersState,
@@ -878,6 +884,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }),
     [
       currentUser,
+      isBootstrapping,
       studentsState,
       classesState,
       galleryState,

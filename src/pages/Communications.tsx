@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useApp } from "@/context/AppContext";
+import { API_URLS } from "@/config/api";
 import { PageHeader } from "@/components/ui-custom/SharedComponents";
-import { Send, Check } from "lucide-react";
+import { Send, Check, Loader2 } from "lucide-react";
 import type { Notification } from "@/types";
 
 export default function Communications() {
@@ -10,6 +11,7 @@ export default function Communications() {
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
   const [sent, setSent] = useState(false);
+  const [isSending, setIsSending] = useState(false);
 
   if (!currentUser || (currentUser.role !== "teacher" && currentUser.role !== "admin")) {
     return (
@@ -24,8 +26,9 @@ export default function Communications() {
   const classId = currentUser.role === "teacher" ? teacherClassId : adminClassId;
   const cls = classes.find((c) => c.id === classId);
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!title.trim() || !message.trim() || !classId) return;
+    setIsSending(true);
     const n: Notification = {
       id: `n-class-${Date.now()}`,
       type: "announcement",
@@ -38,8 +41,20 @@ export default function Communications() {
       classId,
     };
     setNotifications((prev) => [n, ...prev]);
+    if (API_URLS.notifications) {
+      try {
+        await fetch(API_URLS.notifications, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "upsert_notifications", notifications: [n] }),
+        });
+      } catch (e) {
+        console.error("Failed to send class message to API:", e);
+      }
+    }
     setTitle("");
     setMessage("");
+    setIsSending(false);
     setSent(true);
     setTimeout(() => setSent(false), 3000);
   };
@@ -94,11 +109,11 @@ export default function Communications() {
           <button
             type="button"
             onClick={handleSend}
-            disabled={!classId}
+            disabled={!classId || isSending}
             className="inline-flex w-full items-center justify-center gap-2 rounded-[16px] bg-primary px-4 py-2.5 text-sm font-medium text-dash-lime-deep-foreground hover:opacity-90 disabled:opacity-50"
           >
-            <Send className="h-4 w-4" />
-            Send to class parents
+            {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            {isSending ? "Sending..." : "Send to class parents"}
           </button>
           {sent && (
             <p className="flex items-center gap-2 text-sm font-medium text-emerald-600">
