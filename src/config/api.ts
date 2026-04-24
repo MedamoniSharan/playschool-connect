@@ -6,4 +6,5 @@ export const API_URLS = {
   seed: "https://7s0thxe2lj.execute-api.ap-south-2.amazonaws.com/default/seed_data",
   gallery: "https://hme2pc3rq5.execute-api.ap-south-2.amazonaws.com/default/gallery",
   lessons: "https://ao3dgevoib.execute-api.ap-south-2.amazonaws.com/default/lessons",
+  notifications: "https://y9yt0s3lz4.execute-api.ap-south-2.amazonaws.com/default/notification",
 };

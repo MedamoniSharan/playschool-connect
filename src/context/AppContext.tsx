@@ -95,6 +95,8 @@ export const useApp = () => {
 };
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const notificationsSyncReadyRef = React.useRef(false);
+  const notificationsHydratedRef = React.useRef(false);
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
     try {
       const stored = localStorage.getItem('playschool_user');
@@ -162,9 +164,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     localStorage.setItem(LS_KEYS.lessonProgress, JSON.stringify(lessonProgressState));
   }, [lessonProgressState]);
 
+  React.useEffect(() => {
+    if (!currentUser || !API_URLS.notifications) return;
+    if (!notificationsSyncReadyRef.current || !notificationsHydratedRef.current) return;
+
+    const timer = window.setTimeout(() => {
+      fetch(API_URLS.notifications, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "upsert_notifications", notifications: notificationsState }),
+      }).catch((e) => console.error("Failed to sync notifications:", e));
+    }, 250);
+
+    return () => window.clearTimeout(timer);
+  }, [notificationsState, currentUser]);
+
   // Fetch all data from APIs when user is logged in
   React.useEffect(() => {
     if (!currentUser) return;
+    notificationsSyncReadyRef.current = false;
+    notificationsHydratedRef.current = false;
     const loadContextData = async () => {
       try {
         const curriculumClassIds = new Set<string>();
@@ -243,6 +262,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             }
           }
         } catch (e) { console.error('Failed to load classes:', e); }
+
+        // Load notifications from API (if configured) to make messages/broadcast backend-backed.
+        if (API_URLS.notifications) {
+          try {
+            const nRes = await fetch(API_URLS.notifications, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ action: "list_notifications" }),
+            });
+            if (nRes.ok) {
+              const nData = parseApiResponse(await nRes.json());
+              if (Array.isArray(nData.notifications)) {
+                setNotifications(nData.notifications as Notification[]);
+              }
+            }
+          } catch (e) {
+            console.error("Failed to load notifications:", e);
+          }
+        }
+        notificationsHydratedRef.current = true;
+        notificationsSyncReadyRef.current = true;
 
         if (currentUser.classId) noteCurriculumClass(currentUser.classId);
 
