@@ -22,11 +22,15 @@ const colorMap: Record<string, string> = {
 };
 
 export default function Notifications() {
-  const { currentUser, notifications, setNotifications, getChildrenForParent } = useApp();
+  const { currentUser, notifications, setNotifications, getChildrenForParent, classes } = useApp();
   if (!currentUser) return null;
   const children = getChildrenForParent(currentUser.id);
+  const teacherClassId =
+    currentUser.role === "teacher"
+      ? (classes.find((c) => c.teacherId === currentUser.id)?.id ?? currentUser.classId)
+      : currentUser.classId;
   const filtered = notifications.filter((n) =>
-    isNotificationVisible(n, currentUser, children, currentUser.classId),
+    isNotificationVisible(n, currentUser, children, teacherClassId),
   );
 
   const markRead = (id: string) => {

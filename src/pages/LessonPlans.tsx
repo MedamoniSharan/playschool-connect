@@ -173,9 +173,8 @@ export default function LessonPlans() {
 
       {!API_URLS.lessons && (
         <div className="mb-6 rounded-[20px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-          Lesson plans are not loading from the server because no lessons API URL is set. Add{" "}
-          <span className="font-mono font-semibold">VITE_LESSONS_API_URL</span> to{" "}
-          <span className="font-mono">.env.local</span> (your deployed lessons Lambda URL), then restart{" "}
+          Lesson plans are not loading from the server because no lessons API URL is set. Add your lessons
+          endpoint directly in <span className="font-mono font-semibold">src/config/api.ts</span>, then restart{" "}
           <span className="font-mono">npm run dev</span>.
         </div>
       )}

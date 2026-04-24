@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useApp } from "@/context/AppContext";
+import { API_URLS } from "@/config/api";
 import { MontessoriStageControls } from "@/components/progress/MontessoriStageControls";
 import { PersonAvatar } from "@/components/ui-custom/SharedComponents";
 import { cn } from "@/lib/utils";
@@ -85,6 +86,14 @@ export default function Progress() {
           </div>
         )}
       </div>
+
+      {!API_URLS.lessons && (
+        <div className="mb-6 rounded-[20px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+          Progress updates are currently saved only in this browser because no lessons API URL is set.
+          Add your lessons endpoint directly in <span className="font-mono font-semibold">src/config/api.ts</span>
+          to persist stage changes to DynamoDB.
+        </div>
+      )}
 
       {roster.length === 0 ? (
         <div className="rounded-[28px] border border-dashed border-dash-ring bg-dash-surface px-6 py-16 text-center text-dash-muted">

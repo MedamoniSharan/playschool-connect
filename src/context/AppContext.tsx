@@ -22,6 +22,11 @@ export type GalleryUploadResult =
   | { ok: true; media: MediaItem }
   | { ok: false; message: string };
 
+const LS_KEYS = {
+  notifications: "playschool_notifications",
+  lessonProgress: "playschool_lesson_progress",
+} as const;
+
 /** Parse API Gateway / Lambda proxy payloads — direct JSON, string body, or object body */
 function parseApiResponse(raw: unknown): Record<string, unknown> {
   if (raw === null || typeof raw !== "object") return {};
@@ -104,9 +109,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [galleryState, setGallery] = useState<MediaItem[]>([]);
   const [attendanceState, setAttendance] = useState<AttendanceRecord[]>([]);
   const [feesState, setFees] = useState<FeeEntry[]>([]);
-  const [notificationsState, setNotifications] = useState<Notification[]>([]);
+  const [notificationsState, setNotifications] = useState<Notification[]>(() => {
+    try {
+      const stored = localStorage.getItem(LS_KEYS.notifications);
+      return stored ? (JSON.parse(stored) as Notification[]) : [];
+    } catch {
+      return [];
+    }
+  });
   const [curriculumState, setCurriculum] = useState<ClassCurriculum[]>([]);
-  const [lessonProgressState, setLessonProgress] = useState<LessonProgress[]>([]);
+  const [lessonProgressState, setLessonProgress] = useState<LessonProgress[]>(() => {
+    try {
+      const stored = localStorage.getItem(LS_KEYS.lessonProgress);
+      return stored ? (JSON.parse(stored) as LessonProgress[]) : [];
+    } catch {
+      return [];
+    }
+  });
   const [lessonPlansState, setLessonPlans] = useState<LessonPlan[]>([]);
   const [studentReportsState, setStudentReports] = useState<StudentReport[]>([]);
 
@@ -134,6 +153,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     localStorage.removeItem('playschool_user');
     setCurrentUser(null);
   }, []);
+
+  React.useEffect(() => {
+    localStorage.setItem(LS_KEYS.notifications, JSON.stringify(notificationsState));
+  }, [notificationsState]);
+
+  React.useEffect(() => {
+    localStorage.setItem(LS_KEYS.lessonProgress, JSON.stringify(lessonProgressState));
+  }, [lessonProgressState]);
 
   // Fetch all data from APIs when user is logged in
   React.useEffect(() => {
@@ -349,7 +376,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ action: 'update_stage', studentId, activityId, stage })
-        }).catch(e => console.error('Failed to sync stage update:', e));
+        })
+          .then(async (res) => {
+            if (res.ok) return;
+            const body = await res.text().catch(() => "");
+            console.error("Failed to sync stage update:", res.status, body);
+          })
+          .catch((e) => console.error('Failed to sync stage update:', e));
+      } else {
+        console.warn("Lessons API URL is not configured; progress is only stored locally.");
       }
 
       if (currentUser?.role === "teacher" && student) {

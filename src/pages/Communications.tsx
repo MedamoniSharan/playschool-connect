@@ -19,7 +19,9 @@ export default function Communications() {
     );
   }
 
-  const classId = currentUser.role === "teacher" ? currentUser.classId : adminClassId;
+  const teacherClassId =
+    classes.find((c) => c.teacherId === currentUser.id)?.id ?? currentUser.classId ?? "";
+  const classId = currentUser.role === "teacher" ? teacherClassId : adminClassId;
   const cls = classes.find((c) => c.id === classId);
 
   const handleSend = () => {
