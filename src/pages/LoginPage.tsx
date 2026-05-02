@@ -1,49 +1,72 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useApp } from "@/context/AppContext";
-import { ArrowLeft, Eye, EyeOff, GraduationCap, LogIn, School, Shield, Users } from "lucide-react";
-import { LottieIcon } from "@/components/LottieIcon";
+import { ArrowLeft, Eye, EyeOff, LogIn } from "lucide-react";
 
 export default function LoginPage() {
-  const { login } = useApp();
+  const { login, branches } = useApp();
   const navigate = useNavigate();
+  const [branchId, setBranchId] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
+  useEffect(() => {
+    if (!branchId && branches.length === 1) {
+      setBranchId(branches[0].id);
+    }
+  }, [branches, branchId]);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    if (!branchId.trim()) {
+      setError("Choose your campus / branch.");
+      return;
+    }
     setIsLoading(true);
-    const success = await login(email, password);
+    const success = await login(email, password, branchId.trim());
     setIsLoading(false);
     if (success) {
       navigate("/dashboard");
     } else {
-      setError("Invalid email or password. Try the credentials below.");
+      setError("Invalid credentials or no access to this campus.");
     }
   };
 
-  const quickLogin = async (email: string, password: string) => {
-    setError("");
-    setIsLoading(true);
-    const success = await login(email, password);
-    setIsLoading(false);
-    if (success) {
-      navigate("/dashboard");
-    } else {
-      setError("Login failed.");
-    }
-  };
+  const inputCls =
+    "min-h-[44px] w-full rounded-xl px-4 py-3 text-base outline-none transition-all focus:ring-2 focus:ring-[hsl(350,80%,55%)]";
 
   return (
-    <div className="min-h-screen flex" style={{ background: "hsl(201, 100%, 13%)" }}>
-      {/* Left - Branding */}
-      <div className="hidden lg:flex lg:w-1/2 flex-col justify-center px-16 relative">
+    <div
+      className="min-h-[100dvh] flex flex-col lg:flex-row bg-[hsl(201,100%,13%)] pb-[max(1rem,env(safe-area-inset-bottom))]"
+      style={{ paddingTop: "max(0.75rem, env(safe-area-inset-top))" }}
+    >
+      {/* Brand — mobile header + desktop hero */}
+      <div className="relative flex flex-col justify-center px-5 pt-2 pb-6 lg:hidden">
+        <div className="relative z-10 text-center">
+          <img
+            src="/logo.png"
+            alt=""
+            className="mx-auto mb-3 h-14 w-auto object-contain drop-shadow-md"
+          />
+          <h1
+            className="text-3xl font-normal tracking-tight text-white"
+            style={{ fontFamily: "'Instrument Serif', serif" }}
+          >
+            Little Berries
+          </h1>
+          <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-[hsl(240,4%,66%)]">
+            Playschool hub — pick your campus, then sign in.
+          </p>
+        </div>
+      </div>
+
+      <div className="hidden lg:flex lg:w-1/2 lg:flex-col lg:justify-center lg:px-16 relative overflow-hidden">
         <div className="absolute inset-0 z-0 opacity-20">
-          <video autoPlay loop muted playsInline className="w-full h-full object-cover">
+          <video autoPlay loop muted playsInline className="h-full w-full object-cover">
             <source
               src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260314_131748_f2ca2a28-fed7-44c8-b9a9-bd9acdd5ec31.mp4"
               type="video/mp4"
@@ -52,123 +75,106 @@ export default function LoginPage() {
         </div>
         <div className="relative z-10">
           <h1
-            className="text-5xl mb-4 animate-fade-rise"
-            style={{ fontFamily: "'Instrument Serif', serif", color: "hsl(0,0%,100%)" }}
+            className="mb-4 text-5xl text-white animate-fade-rise"
+            style={{ fontFamily: "'Instrument Serif', serif" }}
           >
             Little Berries
           </h1>
-          <p className="text-lg leading-relaxed max-w-md animate-fade-rise-delay" style={{ color: "hsl(240,4%,66%)" }}>
-            A complete management system for playschools. Manage students, attendance, galleries, fees — all in one place.
+          <p className="max-w-md text-lg leading-relaxed text-[hsl(240,4%,66%)] animate-fade-rise-delay">
+            Manage students, attendance, galleries, and fees — campus by campus.
           </p>
         </div>
       </div>
 
-      {/* Right - Login Form */}
-      <div className="flex-1 flex items-center justify-center px-6 py-12">
-        <div className="w-full max-w-md animate-fade-rise">
-          <div className="liquid-glass rounded-2xl p-8">
-            <div className="text-center mb-8">
-              <img src="/logo.png" alt="Little Berries Logo" className="h-16 w-auto object-contain mx-auto mb-4 drop-shadow-md" />
-              <h2
-                className="text-2xl"
-                style={{ fontFamily: "'Instrument Serif', serif", color: "hsl(0,0%,100%)" }}
-              >
+      <div className="flex flex-1 flex-col justify-start lg:justify-center px-4 sm:px-6 pb-8 lg:py-12">
+        <div className="mx-auto w-full max-w-md animate-fade-rise">
+          <div className="liquid-glass rounded-2xl p-5 sm:p-8">
+            <div className="mb-6 hidden text-center lg:block">
+              <img
+                src="/logo.png"
+                alt="Little Berries Logo"
+                className="mx-auto mb-4 h-16 w-auto object-contain drop-shadow-md"
+              />
+              <h2 className="text-2xl text-white" style={{ fontFamily: "'Instrument Serif', serif" }}>
                 Welcome back
               </h2>
-              <p className="text-sm mt-1" style={{ color: "hsl(240,4%,66%)" }}>
-                Sign in to your account
-              </p>
+              <p className="mt-1 text-sm text-[hsl(240,4%,66%)]">Choose campus and sign in</p>
             </div>
 
             <form onSubmit={handleLogin} className="space-y-4">
               <div>
-                <label className="block text-xs font-medium mb-1.5" style={{ color: "hsl(240,4%,66%)" }}>Email</label>
+                <label className="mb-1.5 block text-xs font-medium text-[hsl(240,4%,66%)]">Campus / branch</label>
+                <select
+                  value={branchId}
+                  onChange={(e) => setBranchId(e.target.value)}
+                  required
+                  className={`${inputCls} appearance-none bg-[hsla(0,0%,100%,0.06)] border border-[hsl(0,0%,22%)] text-white`}
+                >
+                  <option value="">Select your campus…</option>
+                  {branches.map((b) => (
+                    <option key={b.id} value={b.id} className="bg-[hsl(201,40%,15%)]">
+                      {b.name}
+                    </option>
+                  ))}
+                </select>
+                {branches.length === 0 && (
+                  <p className="mt-1 text-xs text-amber-400/90">Loading campuses… If this persists, check your connection.</p>
+                )}
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-[hsl(240,4%,66%)]">Email</label>
                 <input
                   type="email"
+                  autoComplete="username"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@example.com"
-                  className="w-full px-4 py-3 rounded-xl text-sm outline-none transition-all focus:ring-2"
-                  style={{
-                    background: "hsla(0,0%,100%,0.05)",
-                    border: "1px solid hsl(0,0%,18%)",
-                    color: "hsl(0,0%,100%)",
-                  }}
+                  className={`${inputCls} bg-[hsla(0,0%,100%,0.05)] border border-[hsl(0,0%,18%)] text-white placeholder:text-[hsl(240,4%,45%)]`}
                 />
               </div>
+
               <div>
-                <label className="block text-xs font-medium mb-1.5" style={{ color: "hsl(240,4%,66%)" }}>Password</label>
+                <label className="mb-1.5 block text-xs font-medium text-[hsl(240,4%,66%)]">Password</label>
                 <div className="relative">
                   <input
                     type={showPassword ? "text" : "password"}
+                    autoComplete="current-password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="w-full px-4 py-3 rounded-xl text-sm outline-none transition-all focus:ring-2 pr-10"
-                    style={{
-                      background: "hsla(0,0%,100%,0.05)",
-                      border: "1px solid hsl(0,0%,18%)",
-                      color: "hsl(0,0%,100%)",
-                    }}
+                    className={`${inputCls} bg-[hsla(0,0%,100%,0.05)] border border-[hsl(0,0%,18%)] pr-11 text-white placeholder:text-[hsl(240,4%,45%)]`}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2"
-                    style={{ color: "hsl(240,4%,66%)" }}
+                    className="absolute right-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-lg text-[hsl(240,4%,66%)] active:bg-white/5"
+                    aria-label={showPassword ? "Hide password" : "Show password"}
                   >
-                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
                 </div>
               </div>
 
               {error && (
-                <p className="text-xs rounded-lg px-3 py-2" style={{ background: "hsla(0,84%,60%,0.15)", color: "hsl(0,84%,60%)" }}>
-                  {error}
-                </p>
+                <p className="rounded-lg px-3 py-2 text-xs text-[hsl(0,84%,60%)] bg-[hsla(0,84%,60%,0.15)]">{error}</p>
               )}
 
               <button
                 type="submit"
-                disabled={isLoading}
-                className="w-full py-3 rounded-xl text-sm font-medium flex items-center justify-center gap-2 transition-opacity hover:opacity-90 disabled:opacity-50"
-                style={{ background: "hsl(350,80%,55%)", color: "hsl(0,0%,100%)" }}
+                disabled={isLoading || branches.length === 0}
+                className="flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50 active:scale-[0.99]"
+                style={{ background: "hsl(350,80%,55%)" }}
               >
-                <LogIn size={16} /> {isLoading ? "Signing In..." : "Sign In"}
+                <LogIn size={18} /> {isLoading ? "Signing in…" : "Sign in"}
               </button>
             </form>
-
-            {/* Quick Login */}
-            <div className="mt-6 pt-6" style={{ borderTop: "1px solid hsl(0,0%,18%)" }}>
-              <p className="text-xs font-medium mb-3" style={{ color: "hsl(240,4%,66%)" }}>Quick Login (Demo)</p>
-              <div className="grid grid-cols-3 gap-2">
-                {[
-                  { label: "Admin", email: "admin@smartplay.com", password: "admin123", color: "hsl(350,80%,55%)", Icon: Shield },
-                  { label: "Teacher", email: "teacher@smartplay.com", password: "teacher123", color: "hsl(38,92%,55%)", Icon: GraduationCap },
-                  { label: "Parent", email: "parent@smartplay.com", password: "parent123", color: "hsl(142,72%,42%)", Icon: Users },
-                ].map((opt) => {
-                  const QuickIcon = opt.Icon;
-                  return (
-                  <button
-                    key={opt.label}
-                    onClick={() => quickLogin(opt.email, opt.password)}
-                    className="py-2 rounded-lg text-xs font-medium transition-transform hover:scale-[1.02] flex items-center justify-center gap-1.5"
-                    style={{ background: `${opt.color}20`, color: opt.color }}
-                  >
-                    <QuickIcon size={14} strokeWidth={2} className="shrink-0" aria-hidden />
-                    {opt.label}
-                  </button>
-                  );
-                })}
-              </div>
-            </div>
           </div>
 
           <button
             type="button"
             onClick={() => navigate("/")}
-            className="mt-4 text-xs mx-auto flex items-center justify-center gap-1.5 transition-colors"
-            style={{ color: "hsl(240,4%,66%)" }}
+            className="mx-auto mt-5 flex min-h-[44px] items-center justify-center gap-2 px-4 text-xs text-[hsl(240,4%,66%)] transition-colors hover:text-white"
           >
             <ArrowLeft size={14} strokeWidth={2} aria-hidden />
             Back to home

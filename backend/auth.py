@@ -1,14 +1,18 @@
 import os
 import json
+import secrets
 import boto3
-from botocore.exceptions import ClientError
 import logging
+from botocore.exceptions import ClientError
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-region = os.environ.get('AWS_REGION', 'ap-south-2')
-dynamodb = boto3.resource('dynamodb', region_name=region)
+region = os.environ.get("AWS_REGION", "ap-south-2")
+dynamodb = boto3.resource("dynamodb", region_name=region)
+
+users_table = dynamodb.Table("Playschool_Users")
+
 
 def ensure_table_exists(table_name, key_schema, attribute_definitions):
     try:
@@ -16,20 +20,24 @@ def ensure_table_exists(table_name, key_schema, attribute_definitions):
         table.table_status
         return table
     except ClientError as e:
-        if e.response['Error']['Code'] == 'ResourceNotFoundException':
-            logger.info(f"Creating table {table_name}...")
+        if e.response["Error"]["Code"] == "ResourceNotFoundException":
+            logger.info("Creating table %s...", table_name)
             table = dynamodb.create_table(
                 TableName=table_name,
                 KeySchema=key_schema,
                 AttributeDefinitions=attribute_definitions,
-                BillingMode='PAY_PER_REQUEST'
+                BillingMode="PAY_PER_REQUEST",
             )
-            table.meta.client.get_waiter('table_exists').wait(TableName=table_name)
+            table.meta.client.get_waiter("table_exists").wait(TableName=table_name)
             return table
-        raise e
+        raise
 
-# Initialize table — direct reference for fast cold start
-users_table = dynamodb.Table('Playschool_Users')
+
+branches_table = ensure_table_exists(
+    "Playschool_Branches",
+    [{"AttributeName": "id", "KeyType": "HASH"}],
+    [{"AttributeName": "id", "AttributeType": "S"}],
+)
 
 CORS_HEADERS = {
     "Content-Type": "application/json",
@@ -54,57 +62,120 @@ def _parse_json_body(event):
         raw = "{}"
     return json.loads(raw)
 
-def lambda_handler(event, context):
-    # Handle CORS preflight
-    if _http_method(event) == "OPTIONS":
+
+def list_branches_handler():
+    """Public list of school branches / brands for login."""
+    try:
+        items = []
+        scan_kwargs = {}
+        while True:
+            resp = branches_table.scan(**scan_kwargs)
+            items.extend(resp.get("Items", []))
+            lek = resp.get("LastEvaluatedKey")
+            if not lek:
+                break
+            scan_kwargs["ExclusiveStartKey"] = lek
+        items.sort(key=lambda b: (str(b.get("sortOrder", "")), str(b.get("name", ""))))
         return {
             "statusCode": 200,
             "headers": CORS_HEADERS,
-            "body": ""
+            "body": json.dumps({"branches": items}),
         }
+    except Exception as e:
+        logger.error("list_branches error: %s", e)
+        return {
+            "statusCode": 500,
+            "headers": CORS_HEADERS,
+            "body": json.dumps({"error": str(e)}),
+        }
+
+
+def _pick_user_for_branch(candidates, branch_id):
+    """Staff must belong to branch; parent may sign in and see branch-scoped children."""
+    staff = [u for u in candidates if u.get("role") in ("admin", "teacher")]
+    parents = [u for u in candidates if u.get("role") == "parent"]
+
+    for u in staff:
+        if u.get("branchId") == branch_id:
+            return u
+
+    if staff:
+        return None
+
+    if parents:
+        return parents[0]
+
+    return candidates[0] if len(candidates) == 1 else None
+
+
+def lambda_handler(event, context):
+    if _http_method(event) == "OPTIONS":
+        return {"statusCode": 200, "headers": CORS_HEADERS, "body": ""}
 
     try:
         body = _parse_json_body(event)
+        action = body.get("action")
+
+        if action == "list_branches":
+            return list_branches_handler()
+
         email = body.get("email")
         password = body.get("password")
-        
+        branch_id = body.get("branchId")
+
+        if not branch_id:
+            return {
+                "statusCode": 400,
+                "headers": CORS_HEADERS,
+                "body": json.dumps({"error": "branchId is required"}),
+            }
+
         if not email or not password:
             return {
                 "statusCode": 400,
                 "headers": CORS_HEADERS,
-                "body": json.dumps({"error": "Email and password are required"})
+                "body": json.dumps({"error": "Email and password are required"}),
             }
-            
-        # For simplicity, scanning. In production, create a GSI on 'email' and use query().
+
         response = users_table.scan(
             FilterExpression="email = :e AND password = :p",
-            ExpressionAttributeValues={":e": email, ":p": password}
+            ExpressionAttributeValues={":e": email, ":p": password},
         )
-        users = response.get('Items', [])
-        
-        if len(users) > 0:
-            user = users[0]
-            # Drop the password before returning 
-            user_safe = {k: v for k, v in user.items() if k != "password"}
+        candidates = response.get("Items", [])
+        while "LastEvaluatedKey" in response:
+            response = users_table.scan(
+                ExclusiveStartKey=response["LastEvaluatedKey"],
+                FilterExpression="email = :e AND password = :p",
+                ExpressionAttributeValues={":e": email, ":p": password},
+            )
+            candidates.extend(response.get("Items", []))
+
+        user = _pick_user_for_branch(candidates, branch_id)
+        if not user:
             return {
-                "statusCode": 200,
+                "statusCode": 401,
                 "headers": CORS_HEADERS,
-                "body": json.dumps({
+                "body": json.dumps({"error": "Invalid credentials or no access to this campus"}),
+            }
+
+        user_safe = {k: v for k, v in user.items() if k != "password"}
+        user_safe["sessionBranchId"] = branch_id
+
+        return {
+            "statusCode": 200,
+            "headers": CORS_HEADERS,
+            "body": json.dumps(
+                {
                     "message": "Login successful",
                     "user": user_safe,
-                    "token": "mock-jwt-token-123"
-                })
-            }
-            
-        return {
-            "statusCode": 401,
-            "headers": CORS_HEADERS,
-            "body": json.dumps({"error": "Invalid email or password"})
+                    "token": secrets.token_urlsafe(32),
+                }
+            ),
         }
     except Exception as e:
-        logger.error(f"Auth error: {e}")
+        logger.error("Auth error: %s", e)
         return {
             "statusCode": 500,
             "headers": CORS_HEADERS,
-            "body": json.dumps({"error": str(e)})
+            "body": json.dumps({"error": str(e)}),
         }

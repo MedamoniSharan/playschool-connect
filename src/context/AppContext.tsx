@@ -3,6 +3,7 @@ import type {
   User,
   Student,
   ClassRoom,
+  Branch,
   MediaItem,
   AttendanceRecord,
   FeeEntry,
@@ -15,6 +16,7 @@ import type {
   Subject,
 } from "@/types";
 import { buildReportFromData } from "@/lib/montessori";
+import { parseApiResponse } from "@/lib/apiResponse";
 import { API_URLS } from "@/config/api";
 
 /** Result of a direct S3 upload via presigned URL (see `uploadGalleryImage`). */
@@ -25,33 +27,18 @@ export type GalleryUploadResult =
 const LS_KEYS = {
   notifications: "playschool_notifications",
   lessonProgress: "playschool_lesson_progress",
+  token: "playschool_token",
 } as const;
-
-/** Parse API Gateway / Lambda proxy payloads — direct JSON, string body, or object body */
-function parseApiResponse(raw: unknown): Record<string, unknown> {
-  if (raw === null || typeof raw !== "object") return {};
-  const obj = raw as Record<string, unknown>;
-  if (typeof obj.body === "string") {
-    try {
-      const inner = JSON.parse(obj.body) as unknown;
-      return typeof inner === "object" && inner !== null ? (inner as Record<string, unknown>) : {};
-    } catch {
-      return obj;
-    }
-  }
-  if (obj.body !== undefined && typeof obj.body === "object" && obj.body !== null && !Array.isArray(obj.body)) {
-    return obj.body as Record<string, unknown>;
-  }
-  return obj;
-}
 
 interface AppState {
   currentUser: User | null;
+  sessionBranchId: string | null;
+  branches: Branch[];
+  refreshBranches: () => Promise<void>;
   isAuthenticated: boolean;
   isBootstrapping: boolean;
-  login: (email: string, password: string) => Promise<boolean>;
+  login: (email: string, password: string, branchId: string) => Promise<boolean>;
   logout: () => void;
-  allUsers: User[];
   students: Student[];
   setStudents: React.Dispatch<React.SetStateAction<Student[]>>;
   classes: ClassRoom[];
@@ -98,15 +85,20 @@ export const useApp = () => {
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const notificationsSyncReadyRef = React.useRef(false);
   const notificationsHydratedRef = React.useRef(false);
+  const [branches, setBranches] = React.useState<Branch[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
     try {
-      const stored = localStorage.getItem('playschool_user');
-      return stored ? JSON.parse(stored) : null;
+      const stored = localStorage.getItem("playschool_user");
+      if (!stored) return null;
+      const u = JSON.parse(stored) as User;
+      if (!u.sessionBranchId && u.branchId) {
+        return { ...u, sessionBranchId: u.branchId };
+      }
+      return u;
     } catch {
       return null;
     }
   });
-  const [allUsersState, setAllUsers] = useState<User[]>([]);
   const [studentsState, setStudents] = useState<Student[]>([]);
   const [classesState, setClasses] = useState<ClassRoom[]>([]);
   const [galleryState, setGallery] = useState<MediaItem[]>([]);
@@ -133,17 +125,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [studentReportsState, setStudentReports] = useState<StudentReport[]>([]);
   const [isBootstrapping, setIsBootstrapping] = useState(false);
 
-  const login = useCallback(async (email: string, password: string): Promise<boolean> => {
+  const sessionBranchId = currentUser?.sessionBranchId ?? null;
+
+  const login = useCallback(async (email: string, password: string, branchId: string): Promise<boolean> => {
     try {
       const response = await fetch(API_URLS.auth, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, branchId }),
       });
-      const data = await response.json();
-      if (response.ok && data.user) {
-        localStorage.setItem('playschool_user', JSON.stringify(data.user));
-        setCurrentUser(data.user);
+      const raw = await response.json().catch(() => ({}));
+      const data = parseApiResponse(raw);
+      const user =
+        (data.user as User | undefined) ??
+        ((raw as Record<string, unknown>).user as User | undefined);
+      const token = data.token ?? (raw as Record<string, unknown>).token;
+      if (response.ok && user) {
+        localStorage.setItem("playschool_user", JSON.stringify(user));
+        if (typeof token === "string" && token.length > 0) {
+          localStorage.setItem(LS_KEYS.token, token);
+        } else {
+          localStorage.removeItem(LS_KEYS.token);
+        }
+        setCurrentUser(user);
         return true;
       }
       return false;
@@ -153,8 +157,49 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, []);
 
+  React.useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const r = await fetch(API_URLS.auth, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "list_branches" }),
+        });
+        if (!r.ok || cancelled) return;
+        const d = parseApiResponse(await r.json());
+        if (Array.isArray(d.branches)) {
+          setBranches(d.branches as Branch[]);
+        }
+      } catch {
+        /* offline */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const refreshBranches = useCallback(async () => {
+    try {
+      const r = await fetch(API_URLS.auth, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "list_branches" }),
+      });
+      if (!r.ok) return;
+      const d = parseApiResponse(await r.json());
+      if (Array.isArray(d.branches)) {
+        setBranches(d.branches as Branch[]);
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
   const logout = useCallback(() => {
-    localStorage.removeItem('playschool_user');
+    localStorage.removeItem("playschool_user");
+    localStorage.removeItem(LS_KEYS.token);
     setCurrentUser(null);
   }, []);
 
@@ -189,6 +234,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setIsBootstrapping(true);
     const loadContextData = async () => {
       try {
+        if (!bid) {
+          logout();
+          return;
+        }
+        const bq = `&branchId=${encodeURIComponent(bid)}`;
         const curriculumClassIds = new Set<string>();
         const noteCurriculumClass = (classId: string | undefined) => {
           if (classId) curriculumClassIds.add(classId);
@@ -196,7 +246,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
         // Load students based on role
         if (currentUser.role === "teacher") {
-          const res = await fetch(`${API_URLS.users}?action=get_students&teacherId=${currentUser.id}`);
+          const res = await fetch(
+            `${API_URLS.users}?action=get_students&teacherId=${encodeURIComponent(currentUser.id)}${bq}`,
+          );
           if (res.ok) {
             const data = parseApiResponse(await res.json());
             if (data.students) {
@@ -218,7 +270,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             }
           }
         } else if (currentUser.role === "parent") {
-          const res = await fetch(`${API_URLS.users}?action=get_children&parentId=${currentUser.id}`);
+          const res = await fetch(
+            `${API_URLS.users}?action=get_children&parentId=${encodeURIComponent(currentUser.id)}${bq}`,
+          );
           if (res.ok) {
             const data = parseApiResponse(await res.json());
             if (data.children) {
@@ -228,8 +282,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             }
           }
         } else if (currentUser.role === "admin") {
-          // Admin: try to get all students via seed/users endpoint
-          const res = await fetch(`${API_URLS.users}?action=get_all_students`);
+          const res = await fetch(
+            `${API_URLS.users}?action=get_all_students&branchId=${encodeURIComponent(bid)}`,
+          );
           if (res.ok) {
             const data = parseApiResponse(await res.json());
             if (data.students) {
@@ -252,9 +307,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         // Load classes from API
         try {
           const classesRes = await fetch(API_URLS.users, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'get_classes' })
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "get_classes", branchId: bid }),
           });
           if (classesRes.ok) {
             const cData = parseApiResponse(await classesRes.json());
@@ -354,7 +409,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     };
     loadContextData();
-  }, [currentUser]);
+  }, [currentUser, logout]);
 
   const getChildrenForParent = useCallback(
     (parentId: string) => {
@@ -843,11 +898,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const value = useMemo(
     () => ({
       currentUser,
+      sessionBranchId,
+      branches,
+      refreshBranches,
       isAuthenticated: !!currentUser,
       isBootstrapping,
       login,
       logout,
-      allUsers: allUsersState,
       students: studentsState,
       setStudents,
       classes: classesState,
@@ -884,6 +941,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }),
     [
       currentUser,
+      sessionBranchId,
+      branches,
+      refreshBranches,
       isBootstrapping,
       studentsState,
       classesState,

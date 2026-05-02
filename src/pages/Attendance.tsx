@@ -8,7 +8,7 @@ import { LayoutGrid, List } from "lucide-react";
 
 export default function Attendance() {
   const { currentUser, attendance, setAttendance, getChildrenForParent, getStudentsForTeacher, classes, students: allStudents } = useApp();
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date("2026-04-11"));
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(() => new Date());
   
   if (!currentUser) return null;
 

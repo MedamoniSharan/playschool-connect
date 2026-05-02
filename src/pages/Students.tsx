@@ -18,10 +18,12 @@ import {
 } from "lucide-react";
 import { Student, ClassRoom } from "@/types";
 import { API_URLS } from "@/config/api";
+import { parseApiResponse } from "@/lib/apiResponse";
 import { toast } from "sonner";
 
 function AddStudentModal({ onClose, onSave, classes, setClasses }: { onClose: () => void; onSave: (s: Student) => void; classes: ClassRoom[]; setClasses: React.Dispatch<React.SetStateAction<ClassRoom[]>> }) {
-  const { currentUser } = useApp();
+  const { currentUser, sessionBranchId } = useApp();
+  const branchScope = sessionBranchId ?? currentUser?.branchId ?? "";
   const [name, setName] = useState("");
   const [age, setAge] = useState("");
   const [classId, setClassId] = useState(classes[0]?.id || "");
@@ -34,6 +36,10 @@ function AddStudentModal({ onClose, onSave, classes, setClasses }: { onClose: ()
 
   const handleAddClass = async () => {
     if (!newClassName.trim()) return;
+    if (!branchScope) {
+      toast.error("Campus context missing. Sign out and sign in again.");
+      return;
+    }
     try {
       const res = await fetch(API_URLS.users, {
         method: "POST",
@@ -42,14 +48,16 @@ function AddStudentModal({ onClose, onSave, classes, setClasses }: { onClose: ()
           action: "add_class",
           name: newClassName.trim(),
           teacherId: currentUser?.role === "teacher" ? currentUser.id : "",
+          branchId: branchScope,
         }),
       });
       if (res.ok) {
         const raw = await res.json();
-        const data = typeof raw.body === "string" ? JSON.parse(raw.body) : raw;
+        const data = parseApiResponse(raw);
         if (data.class) {
-          setClasses((prev) => [...prev, data.class as ClassRoom]);
-          setClassId(data.class.id);
+          const cls = data.class as ClassRoom;
+          setClasses((prev) => [...prev, cls]);
+          setClassId(cls.id);
           setNewClassName("");
           toast.success("Class created successfully");
           return;
@@ -59,17 +67,7 @@ function AddStudentModal({ onClose, onSave, classes, setClasses }: { onClose: ()
       console.error("API error adding class:", e);
     }
 
-    // Local fallback
-    const newClass: ClassRoom = {
-      id: `c${Date.now()}`,
-      name: newClassName.trim(),
-      teacherId: currentUser?.role === "teacher" ? currentUser.id : "",
-      sections: [],
-      studentIds: [],
-    };
-    setClasses((prev) => [...prev, newClass]);
-    setClassId(newClass.id);
-    setNewClassName("");
+    toast.error("Could not create class. Try again.");
   };
 
   const handleSave = async () => {
@@ -94,33 +92,23 @@ function AddStudentModal({ onClose, onSave, classes, setClasses }: { onClose: ()
       });
 
       const raw = await res.json();
-      const data = typeof raw.body === "string" ? JSON.parse(raw.body) : raw;
+      const data = parseApiResponse(raw);
 
-      if (data.student) {
+      if (res.ok && data.student) {
         onSave(data.student as Student);
         toast.success("Student added successfully", {
           description: `Parent login: ${parentEmail}`,
         });
         onClose();
+        setSaving(false);
         return;
       }
+      toast.error(typeof data.error === "string" ? data.error : "Could not add student.");
     } catch (e) {
       console.error("API error adding student:", e);
+      toast.error("Could not add student.");
     }
 
-    // Fallback: create locally if API failed
-    const newStudent: Student = {
-      id: `s${Date.now()}`,
-      name,
-      age: Number(age),
-      classId,
-      section: "",
-      parentId: "",
-      gender,
-      enrollmentDate: new Date().toISOString().split("T")[0],
-    };
-    onSave(newStudent);
-    onClose();
     setSaving(false);
   };
 
@@ -255,7 +243,8 @@ function ManageClassesModal({
   setClasses: React.Dispatch<React.SetStateAction<ClassRoom[]>>;
   teacherClassId?: string;
 }) {
-  const { currentUser } = useApp();
+  const { currentUser, sessionBranchId } = useApp();
+  const branchScope = sessionBranchId ?? currentUser?.branchId ?? "";
   const [newClassName, setNewClassName] = useState("");
 
   // If teacher, only show their class
@@ -263,6 +252,10 @@ function ManageClassesModal({
 
   const addClass = async () => {
     if (!newClassName.trim()) return;
+    if (!branchScope) {
+      toast.error("Campus context missing. Sign out and sign in again.");
+      return;
+    }
     try {
       const res = await fetch(API_URLS.users, {
         method: "POST",
@@ -271,11 +264,12 @@ function ManageClassesModal({
           action: "add_class",
           name: newClassName.trim(),
           teacherId: currentUser?.role === "teacher" ? currentUser.id : "",
+          branchId: branchScope,
         }),
       });
       if (res.ok) {
         const raw = await res.json();
-        const data = typeof raw.body === "string" ? JSON.parse(raw.body) : raw;
+        const data = parseApiResponse(raw);
         if (data.class) {
           setClasses((prev) => [...prev, data.class as ClassRoom]);
           setNewClassName("");
@@ -287,16 +281,7 @@ function ManageClassesModal({
       console.error("API error adding class:", e);
     }
 
-    // Local fallback
-    const newClass: ClassRoom = {
-      id: `c${Date.now()}`,
-      name: newClassName.trim(),
-      teacherId: currentUser?.role === "teacher" ? currentUser.id : "",
-      sections: [],
-      studentIds: [],
-    };
-    setClasses((prev) => [...prev, newClass]);
-    setNewClassName("");
+    toast.error("Could not create class. Try again.");
   };
 
   const deleteClass = async (id: string) => {
@@ -311,10 +296,13 @@ function ManageClassesModal({
         toast.success("Class deleted");
         return;
       }
+      const raw = await res.json().catch(() => ({}));
+      const data = parseApiResponse(raw);
+      toast.error(typeof data.error === "string" ? data.error : "Could not delete class.");
     } catch (e) {
       console.error("API error deleting class:", e);
+      toast.error("Could not delete class.");
     }
-    setClasses((prev) => prev.filter((c) => c.id !== id));
   };
 
   const studentCount = (cls: ClassRoom) =>
@@ -491,9 +479,9 @@ export default function Students() {
         body: JSON.stringify({ action: "delete_student", id }),
       });
       const raw = await res.json();
-      const data = typeof raw.body === "string" ? JSON.parse(raw.body) : raw;
+      const data = parseApiResponse(raw);
       if (!res.ok) {
-        toast.error(data.error || "Could not delete student");
+        toast.error(typeof data.error === "string" ? data.error : "Could not delete student");
         return;
       }
     } catch (e) {

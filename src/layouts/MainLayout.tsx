@@ -66,7 +66,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       <Sidebar />
       <div className="flex min-h-screen flex-col print:ml-0 lg:pl-[284px]">
         <Navbar />
-        <main className="flex-1 p-4 lg:p-8 pt-2 lg:pt-2 animate-fade-in relative z-10 w-full max-w-[1600px] mx-auto">
+        <main className="flex-1 px-3 pb-[max(1rem,env(safe-area-inset-bottom))] pt-2 sm:px-4 lg:p-8 lg:pb-8 animate-fade-in relative z-10 w-full max-w-[1600px] mx-auto">
           {isBootstrapping ? (
             <div className="flex min-h-[50vh] flex-col items-center justify-center gap-3 text-dash-muted">
               <Loader2 className="h-6 w-6 animate-spin" />

@@ -11,12 +11,12 @@ import {
   Menu,
   LogOut,
   GraduationCap,
-  School,
   BookOpen,
   TrendingUp,
   CalendarDays,
   FileText,
   MessageSquare,
+  Building2,
 } from "lucide-react";
 import { PersonAvatar } from "@/components/ui-custom/SharedComponents";
 import { useState } from "react";
@@ -24,6 +24,7 @@ import { Role } from "@/types";
 
 const navItems = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ["admin", "teacher", "parent"] as Role[] },
+  { to: "/branches", label: "Campuses", icon: Building2, roles: ["admin"] as Role[] },
   { to: "/students", label: "Students", icon: GraduationCap, roles: ["admin", "teacher"] as Role[] },
   { to: "/curriculum", label: "Curriculum", icon: BookOpen, roles: ["admin", "teacher"] as Role[] },
   { to: "/progress", label: "Progress", icon: TrendingUp, roles: ["admin", "teacher", "parent"] as Role[] },

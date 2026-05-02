@@ -1,15 +1,28 @@
 export type Role = "admin" | "teacher" | "parent";
 
+/** School branch / brand (campus) */
+export interface Branch {
+  id: string;
+  name: string;
+  /** Optional display ordering */
+  sortOrder?: string;
+}
+
 export interface User {
   id: string;
   name: string;
   role: Role;
   email: string;
-  password: string;
+  /** Present only in forms / seed data; never returned by the login API */
+  password?: string;
   /** Optional profile photo URL */
   avatar?: string;
   classId?: string;
   childIds?: string[];
+  /** Staff home campus; parents may omit when children span branches */
+  branchId?: string;
+  /** Campus selected at sign-in (set by auth Lambda for this session) */
+  sessionBranchId?: string;
 }
 
 export interface Student {
@@ -23,6 +36,7 @@ export interface Student {
   avatar?: string;
   gender: "male" | "female";
   enrollmentDate: string;
+  branchId?: string;
 }
 
 export interface ClassRoom {
@@ -31,6 +45,7 @@ export interface ClassRoom {
   teacherId: string;
   sections: string[];
   studentIds: string[];
+  branchId?: string;
 }
 
 export interface MediaItem {
