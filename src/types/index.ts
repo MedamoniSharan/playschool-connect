@@ -21,8 +21,8 @@ export interface User {
   childIds?: string[];
   /** Staff home campus; parents may omit when children span branches */
   branchId?: string;
-  /** Campus selected at sign-in (set by auth Lambda for this session) */
-  sessionBranchId?: string;
+  /** Campus selected at sign-in (set by auth Lambda). Null = admin viewing all campuses. */
+  sessionBranchId?: string | null;
 }
 
 export interface Student {

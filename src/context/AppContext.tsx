@@ -30,14 +30,26 @@ const LS_KEYS = {
   token: "playschool_token",
 } as const;
 
+/** Branch id for API scoping. Empty string = admin viewing all campuses (`sessionBranchId === null`). */
+export function getEffectiveBranchScope(u: User): string {
+  if (u.role === "admin") {
+    if (u.sessionBranchId === null) return "";
+    if (typeof u.sessionBranchId === "string" && u.sessionBranchId.length > 0) return u.sessionBranchId;
+    return u.branchId ?? "";
+  }
+  return (u.sessionBranchId ?? u.branchId ?? "") as string;
+}
+
 interface AppState {
   currentUser: User | null;
   sessionBranchId: string | null;
+  /** Resolved campus for queries; empty for admin all-campus mode */
+  effectiveBranchScope: string;
   branches: Branch[];
   refreshBranches: () => Promise<void>;
   isAuthenticated: boolean;
   isBootstrapping: boolean;
-  login: (email: string, password: string, branchId: string) => Promise<boolean>;
+  login: (email: string, password: string, branchId?: string) => Promise<boolean>;
   logout: () => void;
   students: Student[];
   setStudents: React.Dispatch<React.SetStateAction<Student[]>>;
@@ -91,7 +103,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const stored = localStorage.getItem("playschool_user");
       if (!stored) return null;
       const u = JSON.parse(stored) as User;
-      if (!u.sessionBranchId && u.branchId) {
+      if (u.sessionBranchId === undefined && u.branchId) {
         return { ...u, sessionBranchId: u.branchId };
       }
       return u;
@@ -127,12 +139,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const sessionBranchId = currentUser?.sessionBranchId ?? null;
 
-  const login = useCallback(async (email: string, password: string, branchId: string): Promise<boolean> => {
+  const effectiveBranchScope = useMemo(
+    () => (currentUser ? getEffectiveBranchScope(currentUser) : ""),
+    [currentUser],
+  );
+
+  const login = useCallback(async (email: string, password: string, branchId?: string): Promise<boolean> => {
     try {
       const response = await fetch(API_URLS.auth, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password, branchId }),
+        body: JSON.stringify({ email, password, branchId: branchId?.trim() || undefined }),
       });
       const raw = await response.json().catch(() => ({}));
       const data = parseApiResponse(raw);
@@ -234,11 +251,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setIsBootstrapping(true);
     const loadContextData = async () => {
       try {
-        if (!bid) {
+        const bid = getEffectiveBranchScope(currentUser);
+        if (!bid && currentUser.role !== "admin") {
           logout();
           return;
         }
-        const bq = `&branchId=${encodeURIComponent(bid)}`;
+        const bq = bid ? `&branchId=${encodeURIComponent(bid)}` : "";
         const curriculumClassIds = new Set<string>();
         const noteCurriculumClass = (classId: string | undefined) => {
           if (classId) curriculumClassIds.add(classId);
@@ -282,9 +300,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             }
           }
         } else if (currentUser.role === "admin") {
-          const res = await fetch(
-            `${API_URLS.users}?action=get_all_students&branchId=${encodeURIComponent(bid)}`,
-          );
+          const adminStudentsUrl = bid
+            ? `${API_URLS.users}?action=get_all_students&branchId=${encodeURIComponent(bid)}`
+            : `${API_URLS.users}?action=get_all_students`;
+          const res = await fetch(adminStudentsUrl);
           if (res.ok) {
             const data = parseApiResponse(await res.json());
             if (data.students) {
@@ -309,7 +328,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           const classesRes = await fetch(API_URLS.users, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ action: "get_classes", branchId: bid }),
+            body: JSON.stringify({
+              action: "get_classes",
+              ...(bid ? { branchId: bid } : {}),
+            }),
           });
           if (classesRes.ok) {
             const cData = parseApiResponse(await classesRes.json());
@@ -899,6 +921,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     () => ({
       currentUser,
       sessionBranchId,
+      effectiveBranchScope,
       branches,
       refreshBranches,
       isAuthenticated: !!currentUser,
@@ -942,6 +965,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     [
       currentUser,
       sessionBranchId,
+      effectiveBranchScope,
       branches,
       refreshBranches,
       isBootstrapping,

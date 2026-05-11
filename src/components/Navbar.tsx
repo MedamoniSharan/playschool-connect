@@ -5,11 +5,13 @@ import { PersonAvatar } from "@/components/ui-custom/SharedComponents";
 import { isNotificationVisible } from "@/lib/notificationsFilter";
 
 export default function Navbar() {
-  const { currentUser, notifications, getChildrenForParent, branches, sessionBranchId } = useApp();
+  const { currentUser, notifications, getChildrenForParent, branches, effectiveBranchScope } = useApp();
   if (!currentUser) return null;
 
   const branchName =
-    branches.find((b) => b.id === sessionBranchId)?.name ?? sessionBranchId ?? "";
+    currentUser.role === "admin" && effectiveBranchScope === ""
+      ? "All campuses"
+      : branches.find((b) => b.id === effectiveBranchScope)?.name ?? effectiveBranchScope ?? "";
 
   const children = getChildrenForParent(currentUser.id);
   const unread = notifications.filter(

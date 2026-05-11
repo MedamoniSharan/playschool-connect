@@ -382,25 +382,29 @@ def get_all_students_handler(event, context):
                 branch_id = body.get("branchId")
             except Exception:
                 branch_id = None
-        if not branch_id:
-            return {
-                "statusCode": 400,
-                "headers": CORS_HEADERS,
-                "body": json.dumps({"error": "branchId is required"}),
-            }
-
         items = []
-        scan_kwargs = {
-            "FilterExpression": "branchId = :b",
-            "ExpressionAttributeValues": {":b": branch_id},
-        }
-        while True:
-            response = students_table.scan(**scan_kwargs)
-            items.extend(response.get("Items", []))
-            key = response.get("LastEvaluatedKey")
-            if not key:
-                break
-            scan_kwargs["ExclusiveStartKey"] = key
+        if branch_id:
+            scan_kwargs = {
+                "FilterExpression": "branchId = :b",
+                "ExpressionAttributeValues": {":b": branch_id},
+            }
+            while True:
+                response = students_table.scan(**scan_kwargs)
+                items.extend(response.get("Items", []))
+                key = response.get("LastEvaluatedKey")
+                if not key:
+                    break
+                scan_kwargs["ExclusiveStartKey"] = key
+        else:
+            # Admin: no branchId means entire network (all campuses).
+            scan_kwargs = {}
+            while True:
+                response = students_table.scan(**scan_kwargs)
+                items.extend(response.get("Items", []))
+                key = response.get("LastEvaluatedKey")
+                if not key:
+                    break
+                scan_kwargs["ExclusiveStartKey"] = key
 
         return {
             "statusCode": 200,

@@ -19,7 +19,7 @@ import { cn } from "@/lib/utils";
 import type { Branch } from "@/types";
 
 export default function Branches() {
-  const { branches, refreshBranches, sessionBranchId } = useApp();
+  const { branches, refreshBranches, sessionBranchId, currentUser } = useApp();
   const [name, setName] = useState("");
   const [sortOrder, setSortOrder] = useState("");
   const [saving, setSaving] = useState(false);
@@ -161,6 +161,11 @@ export default function Branches() {
 
         <div className="rounded-[28px] border border-dash-subtle bg-dash-surface p-5 shadow-sm sm:p-6">
           <h2 className="mb-4 text-lg font-bold text-dash-ink">All campuses</h2>
+          {currentUser?.role === "admin" && sessionBranchId === null && (
+            <p className="mb-4 rounded-2xl border border-dash-lime/40 bg-dash-lime/15 px-4 py-3 text-sm font-medium text-dash-ink">
+              You are signed in across <span className="font-bold">all campuses</span>. Pick a campus on the login screen if you prefer a default filter in the header.
+            </p>
+          )}
           {sorted.length === 0 ? (
             <p className="text-sm font-medium text-dash-muted">No campuses loaded yet. Pull to refresh or check the auth API.</p>
           ) : (

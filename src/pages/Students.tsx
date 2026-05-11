@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useApp } from "@/context/AppContext";
 import { PersonAvatar } from "@/components/ui-custom/SharedComponents";
 import { cn } from "@/lib/utils";
@@ -22,8 +22,14 @@ import { parseApiResponse } from "@/lib/apiResponse";
 import { toast } from "sonner";
 
 function AddStudentModal({ onClose, onSave, classes, setClasses }: { onClose: () => void; onSave: (s: Student) => void; classes: ClassRoom[]; setClasses: React.Dispatch<React.SetStateAction<ClassRoom[]>> }) {
-  const { currentUser, sessionBranchId } = useApp();
-  const branchScope = sessionBranchId ?? currentUser?.branchId ?? "";
+  const { currentUser, effectiveBranchScope, branches } = useApp();
+  const adminNeedsCampusPick = currentUser?.role === "admin" && !effectiveBranchScope;
+  const [adminCampusId, setAdminCampusId] = useState("");
+  useEffect(() => {
+    if (!adminNeedsCampusPick) return;
+    setAdminCampusId((prev) => prev || branches[0]?.id || "");
+  }, [adminNeedsCampusPick, branches]);
+  const branchScope = adminNeedsCampusPick ? adminCampusId : effectiveBranchScope;
   const [name, setName] = useState("");
   const [age, setAge] = useState("");
   const [classId, setClassId] = useState(classes[0]?.id || "");
@@ -37,7 +43,11 @@ function AddStudentModal({ onClose, onSave, classes, setClasses }: { onClose: ()
   const handleAddClass = async () => {
     if (!newClassName.trim()) return;
     if (!branchScope) {
-      toast.error("Campus context missing. Sign out and sign in again.");
+      toast.error(
+        adminNeedsCampusPick && !branches.length
+          ? "Add a campus under Campuses first, then pick it here."
+          : "Campus context missing. Sign out and sign in again.",
+      );
       return;
     }
     try {
@@ -137,6 +147,28 @@ function AddStudentModal({ onClose, onSave, classes, setClasses }: { onClose: ()
         </div>
         <div className="space-y-4">
           <p className="text-xs font-bold uppercase tracking-[0.15em] text-dash-muted">Student Details</p>
+          {adminNeedsCampusPick && (
+            <div>
+              <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-dash-muted">Campus for new class *</label>
+              {branches.length > 0 ? (
+                <select
+                  value={adminCampusId}
+                  onChange={(e) => setAdminCampusId(e.target.value)}
+                  className={cn(inputClass, "appearance-none")}
+                >
+                  {branches.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <p className="text-xs font-medium text-amber-700">
+                  Add a campus under <span className="font-bold">Campuses</span> in the sidebar first.
+                </p>
+              )}
+            </div>
+          )}
           <div>
             <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-dash-muted">Full name</label>
             <input placeholder="e.g. Aarav Kumar" value={name} onChange={(e) => setName(e.target.value)} className={inputClass} />
@@ -243,8 +275,14 @@ function ManageClassesModal({
   setClasses: React.Dispatch<React.SetStateAction<ClassRoom[]>>;
   teacherClassId?: string;
 }) {
-  const { currentUser, sessionBranchId } = useApp();
-  const branchScope = sessionBranchId ?? currentUser?.branchId ?? "";
+  const { currentUser, effectiveBranchScope, branches } = useApp();
+  const adminNeedsCampusPick = currentUser?.role === "admin" && !effectiveBranchScope;
+  const [adminCampusId, setAdminCampusId] = useState("");
+  useEffect(() => {
+    if (!adminNeedsCampusPick) return;
+    setAdminCampusId((prev) => prev || branches[0]?.id || "");
+  }, [adminNeedsCampusPick, branches]);
+  const branchScope = adminNeedsCampusPick ? adminCampusId : effectiveBranchScope;
   const [newClassName, setNewClassName] = useState("");
 
   // If teacher, only show their class
@@ -253,7 +291,11 @@ function ManageClassesModal({
   const addClass = async () => {
     if (!newClassName.trim()) return;
     if (!branchScope) {
-      toast.error("Campus context missing. Sign out and sign in again.");
+      toast.error(
+        adminNeedsCampusPick && !branches.length
+          ? "Add a campus under Campuses first, then pick it here."
+          : "Campus context missing. Sign out and sign in again.",
+      );
       return;
     }
     try {
@@ -373,6 +415,26 @@ function ManageClassesModal({
         {!teacherClassId && (
           <div className="space-y-3 border-t border-dash-subtle pt-5">
             <p className="text-xs font-bold uppercase tracking-[0.15em] text-dash-muted">Add new class</p>
+            {adminNeedsCampusPick && (
+              <div>
+                <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-dash-muted">Campus *</label>
+                {branches.length > 0 ? (
+                  <select
+                    value={adminCampusId}
+                    onChange={(e) => setAdminCampusId(e.target.value)}
+                    className={cn(inputClass, "appearance-none w-full")}
+                  >
+                    {branches.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.name}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <p className="text-xs font-medium text-amber-700">Add a campus under Campuses first.</p>
+                )}
+              </div>
+            )}
             <div className="flex gap-2">
               <input
                 placeholder="Class name (e.g. Nursery, LKG, UKG)"

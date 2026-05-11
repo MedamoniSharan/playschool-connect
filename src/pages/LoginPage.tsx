@@ -22,12 +22,8 @@ export default function LoginPage() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    if (!branchId.trim()) {
-      setError("Choose your campus / branch.");
-      return;
-    }
     setIsLoading(true);
-    const success = await login(email, password, branchId.trim());
+    const success = await login(email, password, branchId.trim() || undefined);
     setIsLoading(false);
     if (success) {
       navigate("/dashboard");
@@ -59,7 +55,7 @@ export default function LoginPage() {
             Little Berries
           </h1>
           <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-[hsl(240,4%,66%)]">
-            Playschool hub — pick your campus, then sign in.
+            Playschool hub — staff pick a campus; admins may skip to manage all campuses.
           </p>
         </div>
       </div>
@@ -98,7 +94,7 @@ export default function LoginPage() {
               <h2 className="text-2xl text-white" style={{ fontFamily: "'Instrument Serif', serif" }}>
                 Welcome back
               </h2>
-              <p className="mt-1 text-sm text-[hsl(240,4%,66%)]">Choose campus and sign in</p>
+              <p className="mt-1 text-sm text-[hsl(240,4%,66%)]">Campus optional for admins — teachers and parents should select theirs</p>
             </div>
 
             <form onSubmit={handleLogin} className="space-y-4">
@@ -107,10 +103,9 @@ export default function LoginPage() {
                 <select
                   value={branchId}
                   onChange={(e) => setBranchId(e.target.value)}
-                  required
                   className={`${inputCls} appearance-none bg-[hsla(0,0%,100%,0.06)] border border-[hsl(0,0%,22%)] text-white`}
                 >
-                  <option value="">Select your campus…</option>
+                  <option value="">All campuses (admins) — or pick yours…</option>
                   {branches.map((b) => (
                     <option key={b.id} value={b.id} className="bg-[hsl(201,40%,15%)]">
                       {b.name}
@@ -118,7 +113,9 @@ export default function LoginPage() {
                   ))}
                 </select>
                 {branches.length === 0 && (
-                  <p className="mt-1 text-xs text-amber-400/90">Loading campuses… If this persists, check your connection.</p>
+                  <p className="mt-1 text-xs text-amber-400/90">
+                    No campuses listed yet — admins can still sign in to add them under Campuses.
+                  </p>
                 )}
               </div>
 
@@ -162,7 +159,7 @@ export default function LoginPage() {
 
               <button
                 type="submit"
-                disabled={isLoading || branches.length === 0}
+                disabled={isLoading}
                 className="flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50 active:scale-[0.99]"
                 style={{ background: "hsl(350,80%,55%)" }}
               >

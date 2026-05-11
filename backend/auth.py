@@ -91,18 +91,31 @@ def list_branches_handler():
 
 
 def _pick_user_for_branch(candidates, branch_id):
-    """Staff must belong to branch; parent may sign in and see branch-scoped children."""
-    staff = [u for u in candidates if u.get("role") in ("admin", "teacher")]
+    """Teachers must match campus. Admins may sign in without a campus (all campuses). Parents need a campus for roster scoping."""
+    admins = [u for u in candidates if u.get("role") == "admin"]
+    teachers = [u for u in candidates if u.get("role") == "teacher"]
     parents = [u for u in candidates if u.get("role") == "parent"]
 
-    for u in staff:
-        if u.get("branchId") == branch_id:
-            return u
+    if admins:
+        if branch_id:
+            for u in admins:
+                if u.get("branchId") == branch_id:
+                    return u
+        # Any admin credential: optional campus or non-matching campus still grants access.
+        admins.sort(key=lambda u: str(u.get("id", "")))
+        return admins[0]
 
-    if staff:
+    if teachers:
+        if not branch_id:
+            return None
+        for u in teachers:
+            if u.get("branchId") == branch_id:
+                return u
         return None
 
     if parents:
+        if not branch_id:
+            return None
         return parents[0]
 
     return candidates[0] if len(candidates) == 1 else None
@@ -121,14 +134,7 @@ def lambda_handler(event, context):
 
         email = body.get("email")
         password = body.get("password")
-        branch_id = body.get("branchId")
-
-        if not branch_id:
-            return {
-                "statusCode": 400,
-                "headers": CORS_HEADERS,
-                "body": json.dumps({"error": "branchId is required"}),
-            }
+        branch_id = (body.get("branchId") or "").strip() or None
 
         if not email or not password:
             return {
@@ -159,7 +165,11 @@ def lambda_handler(event, context):
             }
 
         user_safe = {k: v for k, v in user.items() if k != "password"}
-        user_safe["sessionBranchId"] = branch_id
+        # Admins: omit session branch when signing in without a campus (full-network view).
+        if user_safe.get("role") == "admin" and not branch_id:
+            user_safe["sessionBranchId"] = None
+        else:
+            user_safe["sessionBranchId"] = branch_id
 
         return {
             "statusCode": 200,
