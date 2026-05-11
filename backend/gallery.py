@@ -146,12 +146,24 @@ gallery_table = ensure_table_exists(
 )
 
 
+def _safe_upload_filename(file_name):
+    return "".join(c if c.isalnum() or c in "-_." else "_" for c in (file_name or ""))
+
+
+def _valid_avatar_user_id(user_id):
+    if not user_id or not isinstance(user_id, str):
+        return False
+    return all(c.isalnum() or c in "-_" for c in user_id) and ".." not in user_id
+
+
 def get_presigned_url_handler(event, context):
-    """Generate a presigned S3 PUT URL for the client to upload directly."""
+    """Generate a presigned S3 PUT URL for the client to upload directly (gallery or profile avatar)."""
     try:
         body = _parse_json_body(event)
         file_name = body.get("fileName")
         content_type = body.get("contentType", "image/jpeg")
+        upload_kind = (body.get("uploadKind") or "gallery").strip().lower()
+        user_id = (body.get("userId") or "").strip()
 
         if not file_name:
             return {
@@ -160,11 +172,22 @@ def get_presigned_url_handler(event, context):
                 "body": json.dumps({"error": "fileName is required"})
             }
 
-        # Generate a unique S3 key to avoid collisions
         unique_id = str(uuid.uuid4())[:8]
-        # Sanitize filename: keep only alphanumeric, dashes, underscores, dots
-        safe_name = "".join(c if c.isalnum() or c in "-_." else "_" for c in file_name)
-        s3_key = f"gallery/{unique_id}_{safe_name}"
+        safe_name = _safe_upload_filename(file_name)
+        if not safe_name or safe_name == ".":
+            safe_name = "image.jpg"
+
+        if upload_kind == "avatar":
+            if not _valid_avatar_user_id(user_id):
+                return {
+                    "statusCode": 400,
+                    "headers": CORS_HEADERS,
+                    "body": json.dumps({"error": "userId is required for avatar uploads"}),
+                }
+            # Same bucket and `gallery/` prefix as other uploads (existing IAM / lifecycle).
+            s3_key = f"gallery/avatars/{user_id}/{unique_id}_{safe_name}"
+        else:
+            s3_key = f"gallery/{unique_id}_{safe_name}"
 
         # Generate presigned URL (valid for 5 minutes)
         upload_url = s3_client.generate_presigned_url(
@@ -195,6 +218,45 @@ def get_presigned_url_handler(event, context):
             "statusCode": 500,
             "headers": CORS_HEADERS,
             "body": json.dumps({"error": str(e)})
+        }
+
+
+def presign_get_object_handler(event, context):
+    """Return a time-limited read URL for a private object under `gallery/` (includes `gallery/avatars/`)."""
+    try:
+        body = _parse_json_body(event)
+        key = (body.get("s3Key") or "").strip()
+        if not key or ".." in key or key.startswith("/"):
+            return {
+                "statusCode": 400,
+                "headers": CORS_HEADERS,
+                "body": json.dumps({"error": "Invalid s3Key"}),
+            }
+        # `gallery/*` matches existing uploads; `avatars/*` only for older profile rows before `gallery/avatars/`.
+        if not (key.startswith("gallery/") or key.startswith("avatars/")):
+            return {
+                "statusCode": 403,
+                "headers": CORS_HEADERS,
+                "body": json.dumps({"error": "Key prefix not allowed"}),
+            }
+        read_url = _presigned_get_object_url(key)
+        if not read_url:
+            return {
+                "statusCode": 500,
+                "headers": CORS_HEADERS,
+                "body": json.dumps({"error": "Could not generate read URL"}),
+            }
+        return {
+            "statusCode": 200,
+            "headers": CORS_HEADERS,
+            "body": json.dumps({"readUrl": read_url}),
+        }
+    except Exception as e:
+        logger.error("presign_get_object error: %s", e)
+        return {
+            "statusCode": 500,
+            "headers": CORS_HEADERS,
+            "body": json.dumps({"error": str(e)}),
         }
 
 
@@ -279,6 +341,8 @@ def lambda_handler(event, context):
 
     if action == "get_presigned_url":
         res = get_presigned_url_handler(event, context)
+    elif action == "presign_get_object":
+        res = presign_get_object_handler(event, context)
     elif action == "save_media":
         res = save_media_handler(event, context)
     elif action == "list_media":
@@ -286,7 +350,11 @@ def lambda_handler(event, context):
     else:
         res = {
             "statusCode": 400,
-            "body": json.dumps({"error": "Missing or unknown 'action' parameter. Use: get_presigned_url, save_media, list_media"})
+            "body": json.dumps(
+                {
+                    "error": "Missing or unknown 'action' parameter. Use: get_presigned_url, presign_get_object, save_media, list_media",
+                }
+            )
         }
 
     # Ensure CORS headers are attached to every response if not already

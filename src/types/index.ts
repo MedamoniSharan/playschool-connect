@@ -15,8 +15,10 @@ export interface User {
   email: string;
   /** Present only in forms / seed data; never returned by the login API */
   password?: string;
-  /** Optional profile photo URL */
+  /** Optional profile photo URL (legacy external or canonical S3 URL) */
   avatar?: string;
+  /** S3 object key in the same gallery bucket (`gallery/avatars/{userId}/…`) */
+  avatarS3Key?: string;
   classId?: string;
   childIds?: string[];
   /** Staff home campus; parents may omit when children span branches */

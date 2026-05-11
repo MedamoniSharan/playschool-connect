@@ -24,6 +24,11 @@ export type GalleryUploadResult =
   | { ok: true; media: MediaItem }
   | { ok: false; message: string };
 
+/** Profile photo upload to `gallery/avatars/{userId}/…` in the same S3 bucket as gallery (see `uploadAvatarImage`). */
+export type AvatarUploadResult =
+  | { ok: true; s3Key: string; s3Url: string }
+  | { ok: false; message: string };
+
 const LS_KEYS = {
   notifications: "playschool_notifications",
   lessonProgress: "playschool_lesson_progress",
@@ -51,6 +56,17 @@ interface AppState {
   isBootstrapping: boolean;
   login: (email: string, password: string, branchId?: string) => Promise<boolean>;
   logout: () => void;
+  /** Save profile / password to the users API and refresh the signed-in user in memory + localStorage. */
+  updateProfile: (payload: {
+    currentPassword: string;
+    name: string;
+    email: string;
+    newPassword?: string;
+    /** Set after a successful `uploadAvatarImage` when saving profile */
+    avatarS3Key?: string;
+    /** Remove stored profile photo */
+    removeAvatar?: boolean;
+  }) => Promise<{ ok: true } | { ok: false; error: string }>;
   students: Student[];
   setStudents: React.Dispatch<React.SetStateAction<Student[]>>;
   classes: ClassRoom[];
@@ -83,6 +99,8 @@ interface AppState {
   removeLessonPlan: (id: string) => void;
   generateStudentReport: (studentId: string) => void;
   uploadGalleryImage: (file: File, title: string, event: string, studentIds: string[]) => Promise<GalleryUploadResult>;
+  /** Upload a profile image to S3; call `updateProfile` with `avatarS3Key` to attach it to the account. */
+  uploadAvatarImage: (file: File) => Promise<AvatarUploadResult>;
   addSectionToClass: (classId: string, section: string) => void;
 }
 
@@ -219,6 +237,67 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     localStorage.removeItem(LS_KEYS.token);
     setCurrentUser(null);
   }, []);
+
+  const updateProfile = useCallback(
+    async (payload: {
+      currentPassword: string;
+      name: string;
+      email: string;
+      newPassword?: string;
+      avatarS3Key?: string;
+      removeAvatar?: boolean;
+    }): Promise<{ ok: true } | { ok: false; error: string }> => {
+      if (!currentUser) {
+        return { ok: false, error: "You are not signed in." };
+      }
+      try {
+        const res = await fetch(API_URLS.users, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "update_profile",
+            userId: currentUser.id,
+            currentPassword: payload.currentPassword,
+            name: payload.name,
+            email: payload.email,
+            ...(payload.newPassword?.trim() ? { newPassword: payload.newPassword.trim() } : {}),
+            ...(payload.removeAvatar ? { removeAvatar: true } : {}),
+            ...(payload.avatarS3Key ? { avatarS3Key: payload.avatarS3Key } : {}),
+          }),
+        });
+        const raw = await res.json().catch(() => ({}));
+        const data = parseApiResponse(raw);
+        if (!res.ok) {
+          const err =
+            typeof data.error === "string"
+              ? data.error
+              : `Could not save (${res.status})`;
+          return { ok: false, error: err };
+        }
+        const u = data.user as User | undefined;
+        if (!u) {
+          return { ok: false, error: "Server did not return an updated profile." };
+        }
+        setCurrentUser((prev) => {
+          const merged: User = {
+            ...(prev ?? u),
+            ...u,
+            sessionBranchId: "sessionBranchId" in u ? u.sessionBranchId : prev?.sessionBranchId,
+          };
+          if (!("avatarS3Key" in u)) delete merged.avatarS3Key;
+          if (!("avatar" in u)) delete merged.avatar;
+          const { password: _pw, ...safe } = merged as User & { password?: string };
+          localStorage.setItem("playschool_user", JSON.stringify(safe));
+          return merged;
+        });
+        return { ok: true };
+      } catch (e) {
+        console.error("updateProfile:", e);
+        return { ok: false, error: "Network error. Try again." };
+      }
+    },
+    [currentUser],
+  );
 
   React.useEffect(() => {
     localStorage.setItem(LS_KEYS.notifications, JSON.stringify(notificationsState));
@@ -741,6 +820,76 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     [studentsState, curriculumState, lessonProgressState, attendanceState],
   );
 
+  const uploadAvatarImage = useCallback(
+    async (file: File): Promise<AvatarUploadResult> => {
+      if (!currentUser) {
+        return { ok: false, message: "You need to be signed in to upload a profile photo." };
+      }
+      const contentType = file.type?.trim() ? file.type : "image/jpeg";
+      if (!contentType.startsWith("image/")) {
+        return { ok: false, message: "Please choose an image file (JPEG, PNG, WebP, or GIF)." };
+      }
+
+      try {
+        const presignRes = await fetch(`${API_URLS.gallery}?action=get_presigned_url`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            fileName: file.name || "avatar.jpg",
+            contentType,
+            uploadKind: "avatar",
+            userId: currentUser.id,
+          }),
+        });
+        const presignBodyText = await presignRes.text();
+        if (!presignRes.ok) {
+          console.error("[avatar upload] presign failed", presignRes.status, presignBodyText);
+          return {
+            ok: false,
+            message: "Could not prepare the upload. Please try again or check your connection.",
+          };
+        }
+        let presignRaw: unknown;
+        try {
+          presignRaw = JSON.parse(presignBodyText);
+        } catch {
+          return { ok: false, message: "Server returned an invalid response. Please try again." };
+        }
+        const presignData = parseApiResponse(presignRaw);
+        const uploadUrl = presignData.uploadUrl as string | undefined;
+        const s3Url = presignData.s3Url as string | undefined;
+        const s3Key = presignData.s3Key as string | undefined;
+
+        if (!uploadUrl || !s3Url || !s3Key) {
+          return { ok: false, message: "Upload link was not provided. Please try again." };
+        }
+
+        const uploadRes = await fetch(uploadUrl, {
+          method: "PUT",
+          headers: { "Content-Type": contentType },
+          body: file,
+        });
+        if (!uploadRes.ok) {
+          const uploadErrText = await uploadRes.text().catch(() => "");
+          console.error("[avatar upload] S3 PUT failed", uploadRes.status, uploadErrText);
+          return {
+            ok: false,
+            message:
+              uploadRes.status === 403
+                ? "Upload was denied. Try again, or ask an admin to check storage permissions."
+                : "Could not upload the file. Check the image format and try again.",
+          };
+        }
+
+        return { ok: true, s3Key, s3Url };
+      } catch (e) {
+        console.error("[avatar upload]", e);
+        return { ok: false, message: "Network error. Try again." };
+      }
+    },
+    [currentUser],
+  );
+
   const uploadGalleryImage = useCallback(
     async (file: File, title: string, event: string, studentIds: string[]): Promise<GalleryUploadResult> => {
       if (!currentUser) {
@@ -928,6 +1077,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       isBootstrapping,
       login,
       logout,
+      updateProfile,
       students: studentsState,
       setStudents,
       classes: classesState,
@@ -960,6 +1110,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       removeLessonPlan,
       generateStudentReport,
       uploadGalleryImage,
+      uploadAvatarImage,
       addSectionToClass,
     }),
     [
@@ -981,6 +1132,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       studentReportsState,
       login,
       logout,
+      updateProfile,
       getChildrenForParent,
       getStudentsForTeacher,
       getActivitiesWithSubjects,
@@ -993,6 +1145,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       removeLessonPlan,
       generateStudentReport,
       uploadGalleryImage,
+      uploadAvatarImage,
       addSectionToClass,
     ],
   );

@@ -1,4 +1,5 @@
 import { useApp } from "@/context/AppContext";
+import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -17,6 +18,7 @@ import {
   FileText,
   MessageSquare,
   Building2,
+  Settings,
 } from "lucide-react";
 import { PersonAvatar } from "@/components/ui-custom/SharedComponents";
 import { useState } from "react";
@@ -35,11 +37,13 @@ const navItems = [
   { to: "/fees", label: "Fees", icon: DollarSign, roles: ["admin", "parent"] as Role[] },
   { to: "/communications", label: "Messages", icon: MessageSquare, roles: ["admin", "teacher"] as Role[] },
   { to: "/notifications", label: "Notifications", icon: Bell, roles: ["admin", "teacher", "parent"] as Role[] },
+  { to: "/settings", label: "Settings", icon: Settings, roles: ["admin", "teacher", "parent"] as Role[] },
   { to: "/broadcast", label: "Broadcast", icon: Send, roles: ["admin"] as Role[] },
 ];
 
 export default function Sidebar() {
   const { currentUser, logout } = useApp();
+  const profilePhotoUrl = useResolvedAvatarUrl(currentUser);
   const location = useLocation();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -100,7 +104,7 @@ export default function Sidebar() {
       <div className="p-4 mx-3 mb-4 border border-dash-subtle rounded-[24px] bg-dash-canvas space-y-4 shadow-inner">
         <div className="flex items-center gap-3">
           <div className="ring-2 ring-white rounded-full shrink-0 shadow-sm bg-white">
-             <PersonAvatar kind="user" id={currentUser.id} role={currentUser.role} size="sm" />
+             <PersonAvatar kind="user" id={currentUser.id} role={currentUser.role} size="sm" photoUrl={profilePhotoUrl} />
           </div>
           <div className="min-w-0 pr-1">
             <p className="text-[13px] font-extrabold text-dash-ink truncate">{currentUser.name}</p>

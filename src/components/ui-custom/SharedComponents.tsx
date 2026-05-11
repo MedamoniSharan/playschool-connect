@@ -55,7 +55,7 @@ export function StatusBadge({ status }: { status: string }) {
 }
 
 export type PersonAvatarProps =
-  | { kind: "user"; id: string; role: Role; size?: "sm" | "md" | "lg" }
+  | { kind: "user"; id: string; role: Role; size?: "sm" | "md" | "lg"; photoUrl?: string | null }
   | { kind: "student"; id: string; gender: "male" | "female"; size?: "sm" | "md" | "lg" };
 
 export function PersonAvatar(props: PersonAvatarProps) {
@@ -78,6 +78,19 @@ export function PersonAvatar(props: PersonAvatarProps) {
     if (props.role === "admin") Icon = Shield;
     else if (props.role === "teacher") Icon = GraduationCap;
     else Icon = Users;
+  }
+
+  if (props.kind === "user" && props.photoUrl) {
+    return (
+      <div
+        className={cn(
+          "overflow-hidden rounded-full shrink-0 shadow-sm ring-1 ring-border/60",
+          sizes[size],
+        )}
+      >
+        <img src={props.photoUrl} alt="" className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+      </div>
+    );
   }
 
   return (

@@ -16,6 +16,9 @@ students_table = dynamodb.Table('Playschool_Students')
 classes_table = dynamodb.Table('Playschool_Classes')
 branches_table = dynamodb.Table('Playschool_Branches')
 
+# Same bucket and env as `gallery.py` — no separate S3 bucket for profile photos.
+GALLERY_S3_BUCKET = os.environ.get("GALLERY_S3_BUCKET", "playschool-gallery-uploads")
+
 CORS_HEADERS = {
     "Content-Type": "application/json",
     "Access-Control-Allow-Origin": "*",
@@ -536,6 +539,166 @@ def _branch_is_referenced(branch_id):
     return False
 
 
+def _email_in_use_by_other(email, self_id):
+    """True if another user row already has this email."""
+    scan_kwargs = {
+        "FilterExpression": "email = :e",
+        "ExpressionAttributeValues": {":e": email},
+    }
+    while True:
+        resp = users_table.scan(**scan_kwargs)
+        for u in resp.get("Items", []):
+            if u.get("id") != self_id:
+                return True
+        lek = resp.get("LastEvaluatedKey")
+        if not lek:
+            break
+        scan_kwargs["ExclusiveStartKey"] = lek
+    return False
+
+
+def update_profile_handler(event, context):
+    """Verify current password, then update name, email, avatar fields, and/or password."""
+    try:
+        body = _parse_json_body(event)
+        user_id = body.get("userId")
+        current_password = body.get("currentPassword")
+        if not user_id or current_password is None:
+            return {
+                "statusCode": 400,
+                "headers": CORS_HEADERS,
+                "body": json.dumps({"error": "userId and currentPassword are required"}),
+            }
+
+        get_resp = users_table.get_item(Key={"id": user_id})
+        item = get_resp.get("Item")
+        if not item or item.get("password") != current_password:
+            return {
+                "statusCode": 401,
+                "headers": CORS_HEADERS,
+                "body": json.dumps({"error": "Current password is incorrect"}),
+            }
+
+        new_password = (body.get("newPassword") or "").strip()
+        name = body.get("name")
+        email = body.get("email")
+        remove_photo = body.get("removeAvatar") is True
+        avatar_s3_raw = (body.get("avatarS3Key") or "").strip()
+        legacy_avatar = body.get("avatar") if "avatar" in body else None
+
+        update_parts = []
+        remove_attrs = []
+        expr_names = {}
+        expr_vals = {}
+
+        if new_password:
+            if len(new_password) < 6:
+                return {
+                    "statusCode": 400,
+                    "headers": CORS_HEADERS,
+                    "body": json.dumps({"error": "New password must be at least 6 characters"}),
+                }
+            update_parts.append("password = :pw")
+            expr_vals[":pw"] = new_password
+
+        if name is not None:
+            n = str(name).strip()
+            if not n:
+                return {
+                    "statusCode": 400,
+                    "headers": CORS_HEADERS,
+                    "body": json.dumps({"error": "Name cannot be empty"}),
+                }
+            update_parts.append("#nm = :name")
+            expr_names["#nm"] = "name"
+            expr_vals[":name"] = n
+
+        if email is not None:
+            em = str(email).strip()
+            if not em:
+                return {
+                    "statusCode": 400,
+                    "headers": CORS_HEADERS,
+                    "body": json.dumps({"error": "Email cannot be empty"}),
+                }
+            if em != (item.get("email") or "") and _email_in_use_by_other(em, user_id):
+                return {
+                    "statusCode": 409,
+                    "headers": CORS_HEADERS,
+                    "body": json.dumps({"error": "That email is already used by another account"}),
+                }
+            update_parts.append("email = :em")
+            expr_vals[":em"] = em
+
+        if remove_photo:
+            remove_attrs.extend(["avatar", "avatarS3Key"])
+        elif avatar_s3_raw:
+            if ".." in avatar_s3_raw:
+                return {
+                    "statusCode": 400,
+                    "headers": CORS_HEADERS,
+                    "body": json.dumps({"error": "Invalid avatarS3Key"}),
+                }
+            # New keys: `gallery/avatars/{userId}/…` (same prefix tree as gallery). Legacy: `avatars/{userId}/…`.
+            prefix_ok = f"gallery/avatars/{user_id}/"
+            prefix_legacy = f"avatars/{user_id}/"
+            if not (avatar_s3_raw.startswith(prefix_ok) or avatar_s3_raw.startswith(prefix_legacy)):
+                return {
+                    "statusCode": 403,
+                    "headers": CORS_HEADERS,
+                    "body": json.dumps({"error": "Avatar key does not belong to this account"}),
+                }
+            update_parts.append("avatarS3Key = :ask")
+            update_parts.append("avatar = :avc")
+            expr_vals[":ask"] = avatar_s3_raw
+            expr_vals[":avc"] = f"https://{GALLERY_S3_BUCKET}.s3.{region}.amazonaws.com/{avatar_s3_raw}"
+        elif legacy_avatar is not None:
+            av = str(legacy_avatar or "").strip()
+            if not av:
+                remove_attrs.extend(["avatar", "avatarS3Key"])
+            else:
+                update_parts.append("avatar = :av")
+                expr_vals[":av"] = av
+                remove_attrs.append("avatarS3Key")
+
+        if not update_parts and not remove_attrs:
+            safe = {k: v for k, v in item.items() if k != "password"}
+            return {
+                "statusCode": 200,
+                "headers": CORS_HEADERS,
+                "body": json.dumps({"message": "No changes", "user": safe}, default=_json_default),
+            }
+
+        expr_bits = []
+        if update_parts:
+            expr_bits.append("SET " + ", ".join(update_parts))
+        if remove_attrs:
+            expr_bits.append("REMOVE " + ", ".join(remove_attrs))
+        update_expression = " ".join(expr_bits)
+
+        kwargs = {
+            "Key": {"id": user_id},
+            "UpdateExpression": update_expression,
+        }
+        if expr_vals:
+            kwargs["ExpressionAttributeValues"] = expr_vals
+        if expr_names:
+            kwargs["ExpressionAttributeNames"] = expr_names
+
+        users_table.update_item(**kwargs)
+
+        fresh = users_table.get_item(Key={"id": user_id}).get("Item") or item
+        safe = {k: v for k, v in fresh.items() if k != "password"}
+        return {
+            "statusCode": 200,
+            "headers": CORS_HEADERS,
+            "body": json.dumps({"message": "Profile updated", "user": safe}, default=_json_default),
+        }
+    except Exception as e:
+        logger.error("update_profile error: %s", e)
+        return {"statusCode": 500, "headers": CORS_HEADERS, "body": json.dumps({"error": str(e)})}
+
+
 def delete_branch_handler(event, context):
     try:
         body = _parse_json_body(event)
@@ -604,6 +767,8 @@ def lambda_handler(event, context):
         res = delete_branch_handler(event, context)
     elif action == 'delete_class':
         res = delete_class_handler(event, context)
+    elif action == 'update_profile':
+        res = update_profile_handler(event, context)
     else:
         res = {"statusCode": 400, "body": json.dumps({"error": f"Missing or unknown action: {action}"})}
 

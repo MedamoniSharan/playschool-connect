@@ -1,4 +1,5 @@
 import { useApp } from "@/context/AppContext";
+import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { Bell, Search } from "lucide-react";
 import { Link } from "react-router-dom";
 import { PersonAvatar } from "@/components/ui-custom/SharedComponents";
@@ -6,6 +7,7 @@ import { isNotificationVisible } from "@/lib/notificationsFilter";
 
 export default function Navbar() {
   const { currentUser, notifications, getChildrenForParent, branches, effectiveBranchScope } = useApp();
+  const profilePhotoUrl = useResolvedAvatarUrl(currentUser);
   if (!currentUser) return null;
 
   const branchName =
@@ -50,7 +52,7 @@ export default function Navbar() {
             <span className="text-[10px] font-bold uppercase tracking-wider text-dash-muted">{currentUser.role}</span>
           </div>
           <div className="ring-2 ring-white rounded-full shadow-sm bg-white">
-            <PersonAvatar kind="user" id={currentUser.id} role={currentUser.role} size="sm" />
+            <PersonAvatar kind="user" id={currentUser.id} role={currentUser.role} size="sm" photoUrl={profilePhotoUrl} />
           </div>
         </div>
       </div>
