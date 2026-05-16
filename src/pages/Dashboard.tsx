@@ -162,6 +162,13 @@ function AdminDashboard() {
             Add student
           </Link>
           <Link
+            to="/teachers"
+            className="inline-flex items-center gap-2 rounded-full border border-dash-subtle bg-dash-surface px-4 py-2.5 text-sm font-semibold text-dash-ink transition-colors hover:bg-dash-canvas"
+          >
+            <Plus className="h-4 w-4" strokeWidth={2.5} />
+            Add teacher
+          </Link>
+          <Link
             to="/broadcast"
             className="inline-flex items-center gap-2 rounded-full border border-dash-subtle bg-dash-surface px-4 py-2.5 text-sm font-semibold text-dash-ink transition-colors hover:bg-dash-canvas"
           >

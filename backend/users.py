@@ -539,6 +539,142 @@ def _branch_is_referenced(branch_id):
     return False
 
 
+def _safe_user(item):
+    if not item:
+        return None
+    return {k: v for k, v in item.items() if k != "password"}
+
+
+def _scan_users_by_role(role):
+    items = []
+    scan_kwargs = {
+        "FilterExpression": "#role = :r",
+        "ExpressionAttributeNames": {"#role": "role"},
+        "ExpressionAttributeValues": {":r": role},
+    }
+    while True:
+        resp = users_table.scan(**scan_kwargs)
+        items.extend(resp.get("Items", []))
+        lek = resp.get("LastEvaluatedKey")
+        if not lek:
+            break
+        scan_kwargs["ExclusiveStartKey"] = lek
+    return items
+
+
+def get_teachers_handler(event, context):
+    """Admin: list teachers for one campus, or all campuses when branchId is omitted."""
+    try:
+        qp = event.get("queryStringParameters") or {}
+        branch_id = qp.get("branchId")
+        if not branch_id:
+            try:
+                body = _parse_json_body(event)
+                branch_id = body.get("branchId")
+            except Exception:
+                branch_id = None
+
+        teachers = _scan_users_by_role("teacher")
+        if branch_id:
+            teachers = [t for t in teachers if t.get("branchId") == branch_id]
+
+        safe = [_safe_user(t) for t in teachers]
+        safe.sort(key=lambda u: str(u.get("name", "")).lower())
+
+        return {
+            "statusCode": 200,
+            "headers": CORS_HEADERS,
+            "body": json.dumps({"teachers": safe}, default=_json_default),
+        }
+    except Exception as e:
+        logger.error("get_teachers error: %s", e)
+        return {"statusCode": 500, "headers": CORS_HEADERS, "body": json.dumps({"error": str(e)})}
+
+
+def add_teacher_handler(event, context):
+    """Create a teacher account for a campus (optional class assignment)."""
+    try:
+        body = _parse_json_body(event)
+        name = (body.get("name") or "").strip()
+        email = (body.get("email") or "").strip()
+        password = (body.get("password") or "").strip()
+        branch_id = body.get("branchId")
+        class_id = (body.get("classId") or "").strip() or None
+
+        if not name:
+            return {"statusCode": 400, "headers": CORS_HEADERS, "body": json.dumps({"error": "name is required"})}
+        if not email:
+            return {"statusCode": 400, "headers": CORS_HEADERS, "body": json.dumps({"error": "email is required"})}
+        if not password or len(password) < 6:
+            return {
+                "statusCode": 400,
+                "headers": CORS_HEADERS,
+                "body": json.dumps({"error": "password is required (min 6 characters)"}),
+            }
+        if not branch_id:
+            return {"statusCode": 400, "headers": CORS_HEADERS, "body": json.dumps({"error": "branchId is required"})}
+
+        if _email_in_use_by_other(email, None):
+            return {
+                "statusCode": 409,
+                "headers": CORS_HEADERS,
+                "body": json.dumps({"error": "That email is already used by another account"}),
+            }
+
+        if class_id:
+            cls_resp = classes_table.get_item(Key={"id": class_id})
+            cls_item = cls_resp.get("Item")
+            if not cls_item:
+                return {"statusCode": 404, "headers": CORS_HEADERS, "body": json.dumps({"error": "Class not found"})}
+            if cls_item.get("branchId") and cls_item.get("branchId") != branch_id:
+                return {
+                    "statusCode": 400,
+                    "headers": CORS_HEADERS,
+                    "body": json.dumps({"error": "Class does not belong to the selected campus"}),
+                }
+
+        import time
+        teacher_id = f"t{int(time.time() * 1000)}"
+
+        teacher = {
+            "id": teacher_id,
+            "name": name,
+            "role": "teacher",
+            "email": email,
+            "password": password,
+            "branchId": branch_id,
+        }
+        if class_id:
+            teacher["classId"] = class_id
+
+        users_table.put_item(Item=teacher)
+
+        if class_id:
+            try:
+                classes_table.update_item(
+                    Key={"id": class_id},
+                    UpdateExpression="SET teacherId = :t",
+                    ExpressionAttributeValues={":t": teacher_id},
+                )
+            except Exception as cls_err:
+                logger.warning(f"Could not assign teacher to class: {cls_err}")
+
+        return {
+            "statusCode": 201,
+            "headers": CORS_HEADERS,
+            "body": json.dumps(
+                {
+                    "message": "Teacher created successfully",
+                    "teacher": _safe_user(teacher),
+                },
+                default=_json_default,
+            ),
+        }
+    except Exception as e:
+        logger.error("add_teacher error: %s", e)
+        return {"statusCode": 500, "headers": CORS_HEADERS, "body": json.dumps({"error": str(e)})}
+
+
 def _email_in_use_by_other(email, self_id):
     """True if another user row already has this email."""
     scan_kwargs = {
@@ -769,6 +905,10 @@ def lambda_handler(event, context):
         res = delete_class_handler(event, context)
     elif action == 'update_profile':
         res = update_profile_handler(event, context)
+    elif action == 'get_teachers':
+        res = get_teachers_handler(event, context)
+    elif action == 'add_teacher' or action == 'create_teacher':
+        res = add_teacher_handler(event, context)
     else:
         res = {"statusCode": 400, "body": json.dumps({"error": f"Missing or unknown action: {action}"})}
 

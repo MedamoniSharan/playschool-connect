@@ -21,6 +21,7 @@ import LessonPlans from "@/pages/LessonPlans";
 import Reports from "@/pages/Reports";
 import Communications from "@/pages/Communications";
 import Branches from "@/pages/Branches";
+import Teachers from "@/pages/Teachers";
 import Settings from "@/pages/Settings";
 import NotFound from "@/pages/NotFound";
 
@@ -58,6 +59,14 @@ function AppRoutes() {
           element={
             <RoleRoute roles={["admin"]}>
               <Branches />
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="/teachers"
+          element={
+            <RoleRoute roles={["admin"]}>
+              <Teachers />
             </RoleRoute>
           }
         />
