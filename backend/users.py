@@ -675,6 +675,68 @@ def add_teacher_handler(event, context):
         return {"statusCode": 500, "headers": CORS_HEADERS, "body": json.dumps({"error": str(e)})}
 
 
+def _clear_teacher_from_classes(teacher_id):
+    """Remove teacherId from every class row that references this teacher."""
+    scan_kwargs = {
+        "FilterExpression": "teacherId = :t",
+        "ExpressionAttributeValues": {":t": teacher_id},
+    }
+    while True:
+        resp = classes_table.scan(**scan_kwargs)
+        for cls in resp.get("Items", []):
+            try:
+                classes_table.update_item(
+                    Key={"id": cls["id"]},
+                    UpdateExpression="SET teacherId = :empty",
+                    ExpressionAttributeValues={":empty": ""},
+                )
+            except Exception as cls_err:
+                logger.warning("Could not clear teacherId on class %s: %s", cls.get("id"), cls_err)
+        lek = resp.get("LastEvaluatedKey")
+        if not lek:
+            break
+        scan_kwargs["ExclusiveStartKey"] = lek
+
+
+def delete_teacher_handler(event, context):
+    """Remove a teacher account and unlink them from any assigned classes."""
+    try:
+        body = _parse_json_body(event)
+        teacher_id = body.get("id") or body.get("teacherId")
+        if not teacher_id:
+            qp = event.get("queryStringParameters") or {}
+            teacher_id = qp.get("id") or qp.get("teacherId")
+        if not teacher_id:
+            return {
+                "statusCode": 400,
+                "headers": CORS_HEADERS,
+                "body": json.dumps({"error": "id or teacherId is required"}),
+            }
+
+        u_resp = users_table.get_item(Key={"id": teacher_id})
+        user = u_resp.get("Item")
+        if not user:
+            return {"statusCode": 404, "headers": CORS_HEADERS, "body": json.dumps({"error": "Teacher not found"})}
+        if user.get("role") != "teacher":
+            return {
+                "statusCode": 400,
+                "headers": CORS_HEADERS,
+                "body": json.dumps({"error": "User is not a teacher account"}),
+            }
+
+        _clear_teacher_from_classes(teacher_id)
+        users_table.delete_item(Key={"id": teacher_id})
+
+        return {
+            "statusCode": 200,
+            "headers": CORS_HEADERS,
+            "body": json.dumps({"message": "Teacher deleted", "id": teacher_id}, default=_json_default),
+        }
+    except Exception as e:
+        logger.error("delete_teacher error: %s", e)
+        return {"statusCode": 500, "headers": CORS_HEADERS, "body": json.dumps({"error": str(e)})}
+
+
 def _email_in_use_by_other(email, self_id):
     """True if another user row already has this email."""
     scan_kwargs = {
@@ -909,6 +971,8 @@ def lambda_handler(event, context):
         res = get_teachers_handler(event, context)
     elif action == 'add_teacher' or action == 'create_teacher':
         res = add_teacher_handler(event, context)
+    elif action == 'delete_teacher':
+        res = delete_teacher_handler(event, context)
     else:
         res = {"statusCode": 400, "body": json.dumps({"error": f"Missing or unknown action: {action}"})}
 

@@ -5,8 +5,18 @@ import { API_URLS } from "@/config/api";
 import { parseApiResponse } from "@/lib/apiResponse";
 import { cn } from "@/lib/utils";
 import type { ClassRoom, User } from "@/types";
-import { GraduationCap, Loader2, Mail, Plus, RefreshCw, User as UserIcon, X } from "lucide-react";
+import { GraduationCap, Loader2, Mail, Plus, RefreshCw, Trash2, User as UserIcon, X } from "lucide-react";
 import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
 
 const inputClass =
   "w-full rounded-2xl border border-dash-subtle bg-dash-surface px-4 py-3 text-sm font-medium text-dash-ink outline-none placeholder:text-dash-muted focus:ring-2 focus:ring-dash-ink/10";
@@ -177,6 +187,8 @@ export default function Teachers() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<User | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const loadTeachers = useCallback(async () => {
     const q = effectiveBranchScope
@@ -218,6 +230,34 @@ export default function Teachers() {
       toast.error("Could not refresh teachers");
     } finally {
       setRefreshing(false);
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(API_URLS.users, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "delete_teacher", id: deleteTarget.id }),
+      });
+      const raw = await res.json();
+      const data = parseApiResponse(raw);
+      if (!res.ok) {
+        toast.error(typeof data.error === "string" ? data.error : "Could not delete teacher");
+        return;
+      }
+      setTeachers((prev) => prev.filter((t) => t.id !== deleteTarget.id));
+      setClasses((prev) =>
+        prev.map((c) => (c.teacherId === deleteTarget.id ? { ...c, teacherId: "" } : c)),
+      );
+      toast.success("Teacher removed");
+      setDeleteTarget(null);
+    } catch {
+      toast.error("Could not delete teacher");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -296,6 +336,7 @@ export default function Teachers() {
                   {!effectiveBranchScope && (
                     <th className="px-4 py-4 text-xs font-bold uppercase tracking-wider text-dash-muted">Campus</th>
                   )}
+                  <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider text-dash-muted">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -319,6 +360,16 @@ export default function Teachers() {
                         {branches.find((b) => b.id === t.branchId)?.name ?? t.branchId ?? "—"}
                       </td>
                     )}
+                    <td className="px-6 py-4 text-right">
+                      <button
+                        type="button"
+                        onClick={() => setDeleteTarget(t)}
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-full text-red-600 transition-colors hover:bg-red-500/10"
+                        aria-label={`Delete ${t.name}`}
+                      >
+                        <Trash2 size={16} strokeWidth={2} />
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -337,6 +388,34 @@ export default function Teachers() {
           setClasses={setClasses}
         />
       )}
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent className="rounded-[24px] border-dash-subtle">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this teacher?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteTarget ? (
+                <>
+                  <strong className="text-dash-ink">{deleteTarget.name}</strong> ({deleteTarget.email}) will lose
+                  access. Any class assigned to them will be unassigned.
+                </>
+              ) : null}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col gap-2 sm:flex-row">
+            <AlertDialogCancel className="min-h-[44px] rounded-full border-dash-subtle">Cancel</AlertDialogCancel>
+            <Button
+              type="button"
+              variant="destructive"
+              className="min-h-[44px] w-full rounded-full sm:w-auto"
+              disabled={deleting}
+              onClick={() => void confirmDelete()}
+            >
+              {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Delete teacher"}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
